@@ -11,7 +11,7 @@ enum class TypeOfToken {
 };
 struct Token {
     TypeOfToken type;
-    optional <string> value;//the type either contain a value or nothing.
+    optional <string> value;//the type either contain a value or nothing
 };
 int main(int argc, char* argv[]){
     if (argc !=2) {
