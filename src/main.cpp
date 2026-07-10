@@ -19,7 +19,7 @@ struct Token {
 };
 
 vector<Token> tokenize(const string &str) {
-    //scan characters, build a buffer, create tokens
+    //scan characters, build a buffer,  create tokens
     vector<Token> tokens{};
     string buffer;
 
