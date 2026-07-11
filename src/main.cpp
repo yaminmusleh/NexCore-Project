@@ -120,9 +120,12 @@ int main(int argc, char *argv[]) {
     vector<Token> tokens = tokenize(contents); // save returned tokens
 
     {
-        fstream file2("../out.asm", ios::out); // we want the output to become an assembly seperate file
+        fstream file2("out.asm", ios::out); // we want the output to become an assembly seperate file
         file2 << tokens_to_assembly(tokens)<<endl; // insert the tokens (which are the assembly code we got) into the file
     }
+
+    system("nasm -felf64 out.asm");
+    system("ld -o out out.o");
 
     return EXIT_SUCCESS;
 }
