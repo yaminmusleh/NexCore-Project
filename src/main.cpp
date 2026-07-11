@@ -64,7 +64,7 @@ vector<Token> tokenize(const string &str) {
 }
 
 string tokens_to_assembly(vector<Token> &tokens) {
-    string buffer = "global _start\nstart:\n";
+    string buffer = "global _start\n_start:\n";
     for (int i = 0; i < tokens.size(); i++) {
         //used size because its a vector not an array.
         const Token &token = tokens.at(i); // grabbing the token from its reference above.
@@ -119,7 +119,10 @@ int main(int argc, char *argv[]) {
 
     vector<Token> tokens = tokenize(contents); // save returned tokens
 
-    cout<<tokens_to_assembly(tokens)<<endl;
+    {
+        fstream file2("../out.asm", ios::out); // we want the output to become an assembly seperate file
+        file2 << tokens_to_assembly(tokens)<<endl; // insert the tokens (which are the assembly code we got) into the file
+    }
 
     return EXIT_SUCCESS;
 }
