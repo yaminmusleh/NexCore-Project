@@ -82,9 +82,9 @@ private: //Everything below this line is accessible from inside the class to the
     //need public methods: peak and consume
 
     //implement peek:
-    [[nodiscard]] optional<char> peek() const {
+    [[nodiscard]] optional<char> peek( int offset = 1) const {
         //looking at the next thing without consuming it
-        if (index < str.length()) {
+        if (index + offset < str.length()) {
             return str[index];
         }
 
