@@ -29,7 +29,7 @@ public: //Everything below this line is accessible from outside the class to the
     explicit Tokenization(string source)
     : str(std::move(source))
     //This is the constructor. it has the same name as the class. doesn't have a return type.
-    //runs automatically when an object is created
+    //runs automatically when an object is created.
     {
     }
 
