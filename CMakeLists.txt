@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 4.2) #min version
 
-project(hydrogen) #project name
+project(nexcore) #project name
 
 set(CMAKE_CXX_STANDARD 20) #standard c++ version
 
-add_executable(hydro src/main.cpp) #what to execute
+add_executable(nexc src/main.cpp) #what to execute

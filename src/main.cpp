@@ -101,7 +101,7 @@ string tokens_to_assembly(vector<Token> &tokens) {
 int main(int argc, char *argv[]) {
     if (argc != 2) {
         cerr << "Incorrect usage. Correct usage is..." << endl;
-        cerr << "hyrdo <input.hy>" << endl;
+        cerr << "nexcore <input.nex>" << endl;
         return EXIT_FAILURE;
     }
 
