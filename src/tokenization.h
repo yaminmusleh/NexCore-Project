@@ -28,14 +28,14 @@ public: //Everything below this line is accessible from outside the class to the
 
     //need a public method that returns a vector of tokens
 
-    vector<Token> tokenize() {
+    [[nodiscard]] vector<Token> tokenize() {
         //scan characters, build a buffer,  create tokens
         vector<Token> tokens;
         // storing tokens in the string
         string buffer;
 
         while (peek()) {
-             char c = *peek(); // get current character from peek
+            char c = *peek(); // get current character from peek
 
             if (!c)
                 break;
@@ -68,8 +68,7 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == ';') {
                 consume(); // move past ';'
                 tokens.push_back(Token{TypeOfToken::semi, ";"});
-            }
-            else {
+            } else {
                 consume(); // skip unknown characters.
             }
         }
@@ -83,7 +82,8 @@ private: //Everything below this line is accessible from inside the class to the
     //need public methods: peak and consume
 
     //implement peek:
-    optional<char> peek() const { //looking at the next thing without consuming it
+    [[nodiscard]] optional<char> peek() const {
+        //looking at the next thing without consuming it
         if (index < str.length()) {
             return str[index];
         }
@@ -92,7 +92,7 @@ private: //Everything below this line is accessible from inside the class to the
     }
 
     //implement consume: consume() should return the current character and move forward.
-    optional<char> consume() {
+    [[nodiscard]] optional<char> consume() {
         if (index < str.length()) {
             return str[index++]; //returns current then increments the index
         }
@@ -101,9 +101,8 @@ private: //Everything below this line is accessible from inside the class to the
     }
 
     const string p_filename;
-    string str;       // the file contents
+    string str; // the file contents
     size_t index = 0; // current position in the string. index tells you where you are while reading.
-
 };
 
 
@@ -127,4 +126,7 @@ will not change the original variable.
 
 : p_filename(move(filename)) Treat this object as something I can steal resources from. used when we don't need copies
 
+
+ 3.
+[[nodiscard]] : is placed before a function declaration when you want the compiler to warn you if someone ignores the function's return value.
 */
