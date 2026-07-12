@@ -70,7 +70,7 @@ public: //Everything below this line is accessible from outside the class to the
                     buffer.push_back(*consume());
                 }
 
-                if (buffer == "return") {
+                if (buffer == "exit") {
                     tokens.push_back(Token{TypeOfToken::exit, buffer});
                 } else {
                     tokens.push_back(Token{TypeOfToken::identifier, buffer});
