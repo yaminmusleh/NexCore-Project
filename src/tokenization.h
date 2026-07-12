@@ -2,6 +2,11 @@
 //Without it, if the same header gets included multiple times, you can get duplicate definition errors.
 #include <vector>
 #include <string>
+#include <optional>
+#include <fstream>
+#include <sstream>
+#include <stdexcept>
+#include <cctype>
 using namespace std;
 
 
@@ -21,9 +26,20 @@ class Tokenization {
     //Defines a class named Tokenization.
 public: //Everything below this line is accessible from outside the class to the objects.
 
-    inline Tokenization(const string filename) : p_filename(move(filename)) {
+    inline Tokenization(string filename) : p_filename(move(filename)) {
         //This is the constructor. it has the same name as the class. doesn't have a return type.
         //runs automatically when an object is created
+
+        ifstream file(p_filename);
+
+        if (!file) {
+            throw runtime_error("Could not open file.");
+        }
+
+        stringstream buffer;
+        buffer << file.rdbuf();
+
+        str = buffer.str();
     }
 
     //need a public method that returns a vector of tokens
@@ -34,11 +50,12 @@ public: //Everything below this line is accessible from outside the class to the
         // storing tokens in the string
         string buffer;
 
-        while (peek()) {
-            char c = *peek(); // get current character from peek
+        while (auto current = peek()) {
+            //while there are characters to look upon
 
-            if (!c)
-                break;
+            char c = *current;
+            // get current character from peek and since its a vector we make a pointer to point at the value
+
 
             if (isalpha(c)) {
                 //checks if a single character is alphabetic or not
@@ -49,6 +66,7 @@ public: //Everything below this line is accessible from outside the class to the
                 //like these identifiers values: "value1", "count2", etc.
 
                 while (peek() && isalnum(*peek())) {
+                    // if there was a character to read and that character was alpha-numeric, then push it with consume.
                     buffer.push_back(*consume());
                 }
 
@@ -81,11 +99,12 @@ private: //Everything below this line is accessible from inside the class to the
 
     //need public methods: peak and consume
 
-    //implement peek:
-    [[nodiscard]] optional<char> peek( int offset = 1) const {
+    //implement peek: peek() lets you look at a character without moving the current position.
+
+    [[nodiscard]] optional<char> peek(int offset = 0) const {
         //looking at the next thing without consuming it
         if (index + offset < str.length()) {
-            return str[index];
+            return str[index + offset];
         }
 
         return {};
@@ -99,6 +118,8 @@ private: //Everything below this line is accessible from inside the class to the
 
         return {};
     }
+
+    //note: consume() and peek() points at the same index of the character but peek() reads it and consume() takes it
 
     const string p_filename;
     string str; // the file contents
