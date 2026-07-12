@@ -75,8 +75,15 @@ int main(int argc, char *argv[]) {
         file2 << tokens_to_assembly(tokens)<<endl; // insert the tokens (which are the assembly code we got) into the file
     }
 
-    system("nasm -felf64 out.asm");
-    system("ld -o out out.o");
+    if (system("nasm -f elf64 out.asm") != 0) {
+        cerr << "NASM failed.\n";
+        return EXIT_FAILURE;
+    }
+
+    if (system("ld -o out out.o") != 0) {
+        cerr << "Linker failed.\n";
+        return EXIT_FAILURE;
+    }
 
     return EXIT_SUCCESS;
 }
