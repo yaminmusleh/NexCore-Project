@@ -8,32 +8,34 @@
 #include "./tokenization.h"
 using namespace std;
 
-vector<Token> tokenize(const string &str) {
-
-}
 
 string tokens_to_assembly(vector<Token> &tokens) {
-    string buffer = "global _start\n_start:\n";
+    string buffer =
+    "global _start\n"
+    "section .text\n"
+    "_start:\n";
     for (int i = 0; i < tokens.size(); i++) {
         //used size because it's a vector not an array.
         const Token &token = tokens.at(i); // grabbing the token from its reference above.
         switch (token.type) {
             case TypeOfToken::exit: {
-                if (i + 1 >= tokens.size()) { // to check if there was a token after return
-                    throw runtime_error("Expected integer after return");
+                if (i + 1 >= tokens.size()) {
+                    throw runtime_error("Expected integer after exit");
                 }
-                const Token &token = tokens.at(i + 1); // to get the next token.
-                if (token.type != TypeOfToken::int_lit) {
-                    throw runtime_error("Expected integer after return value");
+
+                const Token &next_token = tokens.at(i + 1);
+
+                if (next_token.type != TypeOfToken::int_lit) {
+                    throw runtime_error("Expected integer after exit value");
                 }
+
                 buffer += "    mov rax, 60\n";
                 buffer += "    mov rdi, ";
-                buffer += token.value.value();
+                buffer += next_token.value.value();
                 buffer += "\n";
                 buffer += "    syscall\n";
 
                 i++;
-
                 break;
             }
             case TypeOfToken::int_lit:
@@ -66,7 +68,18 @@ int main(int argc, char *argv[]) {
 
     string contents = buffer.str();
 
-    vector<Token> tokens = tokenize(contents); // save returned tokens
+    Tokenization tokenizer(std::move(contents));
+    vector<Token> tokens = tokenizer.tokenize(); // save returned tokens
+    cout << "Token count: " << tokens.size() << '\n';
+
+    for (const auto& t : tokens) {
+        cout << static_cast<int>(t.type);
+
+        if (t.value)
+            cout << " -> " << *t.value;
+
+        cout << '\n';
+    }
 
     {
         fstream file2("out.asm", ios::out); // we want the output to become an assembly separate file

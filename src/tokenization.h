@@ -26,20 +26,11 @@ class Tokenization {
     //Defines a class named Tokenization.
 public: //Everything below this line is accessible from outside the class to the objects.
 
-    inline Tokenization(string filename) : p_filename(move(filename)) {
-        //This is the constructor. it has the same name as the class. doesn't have a return type.
-        //runs automatically when an object is created
-
-        ifstream file(p_filename);
-
-        if (!file) {
-            throw runtime_error("Could not open file.");
-        }
-
-        stringstream buffer;
-        buffer << file.rdbuf();
-
-        str = buffer.str();
+    explicit Tokenization(string source)
+    : str(std::move(source))
+    //This is the constructor. it has the same name as the class. doesn't have a return type.
+    //runs automatically when an object is created
+    {
     }
 
     //need a public method that returns a vector of tokens
@@ -121,7 +112,7 @@ private: //Everything below this line is accessible from inside the class to the
 
     //note: consume() and peek() points at the same index of the character but peek() reads it and consume() takes it
 
-    const string p_filename;
+
     string str; // the file contents
     size_t index = 0; // current position in the string. index tells you where you are while reading.
 };
