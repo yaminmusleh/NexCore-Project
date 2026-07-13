@@ -88,6 +88,13 @@ private:
     [[nodiscard]] inline Token consume() {
         // it will consume the token not the character like before
         return p_tokens[m_index++];
+
+        /*
+        peek() returns optional<Token>, consume() returns Token directly (not optional) — because by the time I call consume(),
+        I should've already checked peek() confirms a token exists.
+        If I call consume() past the end here it'll crash (out-of-bounds),
+        unlike the tokenizer's consume() which safely returns {}.
+        */
     }
 
     vector<Token> p_tokens;
