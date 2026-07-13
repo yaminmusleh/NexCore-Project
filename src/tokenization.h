@@ -92,7 +92,7 @@ private: //Everything below this line is accessible from inside the class to the
 
     //implement peek: peek() lets you look at a character without moving the current position.
 
-    [[nodiscard]] optional<char> peek(int offset = 0) const {
+    [[nodiscard]] inline optional<char> peek(int offset = 0) const {
         //looking at the next thing without consuming it
         if (index + offset < str.length()) {
             return str[index + offset];
@@ -102,7 +102,7 @@ private: //Everything below this line is accessible from inside the class to the
     }
 
     //implement consume: consume() should return the current character and move forward.
-    [[nodiscard]] optional<char> consume() {
+    [[nodiscard]] inline optional<char> consume() {
         if (index < str.length()) {
             return str[index++]; //returns current then increments the index
         }

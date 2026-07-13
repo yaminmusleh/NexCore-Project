@@ -15,6 +15,7 @@ string tokens_to_assembly(vector<Token> &tokens) {
     "global _start\n"
     "section .text\n"
     "_start:\n";
+
     for (int i = 0; i < tokens.size(); i++) {
         //used size because it's a vector not an array.
         const Token &token = tokens.at(i); // grabbing the token from its reference above.
