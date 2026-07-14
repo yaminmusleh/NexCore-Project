@@ -7,49 +7,9 @@
 #include <stdexcept>
 #include "./tokenization.h"
 #include "./parser.h"
+#include "./generation.h"
 using namespace std;
 
-
-string tokens_to_assembly(vector<Token> &tokens) {
-    string buffer =
-    "global _start\n"
-    "section .text\n"
-    "_start:\n";
-
-    for (int i = 0; i < tokens.size(); i++) {
-        //used size because it's a vector not an array.
-        const Token &token = tokens.at(i); // grabbing the token from its reference above.
-        switch (token.type) {
-            case TypeOfToken::exit: {
-                if (i + 1 >= tokens.size()) {
-                    throw runtime_error("Expected integer after exit");
-                }
-
-                const Token &next_token = tokens.at(i + 1);
-
-                if (next_token.type != TypeOfToken::int_lit) {
-                    throw runtime_error("Expected integer after exit value");
-                }
-
-                buffer += "    mov rax, 60\n";
-                buffer += "    mov rdi, ";
-                buffer += next_token.value.value();
-                buffer += "\n";
-                buffer += "    syscall\n";
-
-                i++;
-                break;
-            }
-            case TypeOfToken::int_lit:
-                break;
-            case TypeOfToken::semi:
-                break;
-            case TypeOfToken::identifier:
-                break;
-        }
-    }
-    return buffer;
-}
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
@@ -74,7 +34,7 @@ int main(int argc, char *argv[]) {
     vector<Token> tokens = tokenizer.tokenize(); // save returned tokens
     cout << "Token count: " << tokens.size() << '\n';
 
-    for (const auto& t : tokens) {
+    for (const auto &t: tokens) {
         cout << static_cast<int>(t.type);
 
         if (t.value)
@@ -83,9 +43,21 @@ int main(int argc, char *argv[]) {
         cout << '\n';
     }
 
+    Parser parser(std::move(tokens));
+
+    auto root = parser.parse();
+
+    if (!root) {
+        std::cerr << "Parsing failed.\n";
+        return EXIT_FAILURE;
+    }
+
+    Generator generator(std::move(root.value())); // passing the root value for the generator
+
     {
         fstream file2("out.asm", ios::out); // we want the output to become an assembly separate file
-        file2 << tokens_to_assembly(tokens)<<endl; // insert the tokens (which are the assembly code we got) into the file
+        file2 << generator.generate();
+        // insert the tokens (which are the assembly code we got) into the file
     }
 
     if (system("nasm -f elf64 out.asm") != 0) {
