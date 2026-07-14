@@ -24,5 +24,5 @@ public:
     }
 
 private:
-    const NodeExit& m_root;
+    const NodeExit m_root;
 };
