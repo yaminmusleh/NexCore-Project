@@ -1,1 +1,3 @@
-exit 100;
+set x = 5;
+
+exit(x);

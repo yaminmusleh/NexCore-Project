@@ -1,9 +1,22 @@
 $$
-\begin{align}
-[\text{exit}] &\to exit(\text{Expression});
+\begin{aligned}
+\langle \text{Program} \rangle
+    &\to \langle \text{Statement} \rangle^*
 \\
-
-[\text{Expression}] &\to \text{int\_lit}
-
-\end{align}
+\langle \text{Statement} \rangle
+    &\to \langle \text{ExitStatement} \rangle
+    \mid \langle \text{VariableDeclaration} \rangle
+\\
+\langle \text{ExitStatement} \rangle
+    &\to \texttt{exit} \; ( \langle \text{Expression} \rangle ) \; \texttt{;}
+\\
+\langle \text{VariableDeclaration} \rangle
+    &\to \texttt{let} \; \texttt{identifier} \; = \; \langle \text{Expression} \rangle \; \texttt{;}
+\\
+\langle \text{Expression} \rangle
+    &\to \langle \text{IntegerLiteral} \rangle
+\\
+\langle \text{IntegerLiteral} \rangle
+    &\to \texttt{int\_lit}
+\end{aligned}
 $$

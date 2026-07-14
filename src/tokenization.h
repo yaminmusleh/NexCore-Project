@@ -14,7 +14,9 @@ enum class TypeOfToken {
     exit,
     int_lit,
     semi,
-    identifier
+    identifier,
+    open_paren,
+    close_paren
 };
 
 struct Token {
@@ -27,7 +29,7 @@ class Tokenization {
 public: //Everything below this line is accessible from outside the class to the objects.
 
     explicit Tokenization(string source)
-    : str(std::move(source))
+        : str(std::move(source))
     //This is the constructor. it has the same name as the class. doesn't have a return type.
     //runs automatically when an object is created.
     {
@@ -74,6 +76,12 @@ public: //Everything below this line is accessible from outside the class to the
                 }
 
                 tokens.push_back(Token{TypeOfToken::int_lit, buffer});
+            } else if (c == '(') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::open_paren});
+            } else if (c == ')') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::close_paren});
             } else if (c == ';') {
                 consume(); // move past ';'
                 tokens.push_back(Token{TypeOfToken::semi, ";"});

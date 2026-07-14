@@ -39,6 +39,12 @@ public:
         if (peek().has_value() && peek()->type == TypeOfToken::exit) {
             consume(); // eat "exit"
 
+            if (peek().has_value() && peek()->type == TypeOfToken::open_paren) {
+                consume(); // eat '('
+            } else {
+                throw std::runtime_error("Expected '(' after exit");
+            }
+
             if (auto node_expr = parse_expr()) {
                 exit_node = NodeExit{.expr = node_expr.value()};
                 /*
@@ -47,6 +53,12 @@ public:
                 */
             } else {
                 throw std::runtime_error("Invalid expression after exit");
+            }
+
+            if (peek().has_value() && peek()->type == TypeOfToken::close_paren) {
+                consume(); // eat ')'
+            } else {
+                throw std::runtime_error("Expected ')' after expression");
             }
 
             if (peek().has_value() && peek()->type == TypeOfToken::semi) {
