@@ -16,7 +16,9 @@ enum class TypeOfToken {
     semi,
     identifier,
     open_paren,
-    close_paren
+    close_paren,
+    equals,
+    set
 };
 
 struct Token {
@@ -65,6 +67,8 @@ public: //Everything below this line is accessible from outside the class to the
 
                 if (buffer == "exit") {
                     tokens.push_back(Token{TypeOfToken::exit, buffer});
+                } else if (buffer == "set") {
+                    tokens.push_back(Token{TypeOfToken::set, buffer});
                 } else {
                     tokens.push_back(Token{TypeOfToken::identifier, buffer});
                 }
@@ -85,6 +89,9 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == ';') {
                 consume(); // move past ';'
                 tokens.push_back(Token{TypeOfToken::semi, ";"});
+            } else if (c == '=') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::equals, "="});
             } else {
                 consume(); // skip unknown characters.
             }

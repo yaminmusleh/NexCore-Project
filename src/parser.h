@@ -10,7 +10,6 @@
 
 //we need nodes that represent a single expression.
 
-struct NodeExprBinary;
 
 struct NodeExprIntLit {
     Token int_lit; // this alone means that the expression should only accept integer literals like 1, 2, 3 etc.
@@ -20,28 +19,25 @@ struct NodeExprIdentifier {
     Token identifier; // represents the variables like x, y, z etc.
 };
 
-using NodeExprVariant = std::variant<
-    NodeExprIntLit,
-    NodeExprIdentifier,
-    std::unique_ptr<NodeExprBinary>
->;
-
 struct NodeExpr {
-    NodeExprVariant expr;
+    std::variant<NodeExprIntLit, NodeExprIdentifier> expr;
 };
 
-struct NodeExprBinary {
-    std::unique_ptr<NodeExpr> lhs; // on the left hand side
-    Token op; // operations
-    std::unique_ptr<NodeExpr> rhs; // on the right hand side
-
-    //this represents mathematical operations like 4+3 or x * y etc.
-};
-
-struct NodeExit {
-    // represents "exit" statement in the compiler.
+struct NodeStmntExit {
     NodeExpr expr;
-    //here we put the expression from the node before it inside the exit statement.
+};
+
+struct NodeStmntLet {
+    Token identifier;
+    NodeExpr expr;
+};
+
+struct NodeStmnt {
+    std::variant<NodeStmntExit, NodeStmntLet> stmnt;
+};
+
+struct NodeProgram {
+    std::vector<NodeStmnt> statements;
 };
 
 /*
@@ -89,62 +85,123 @@ public:
 
         return std::nullopt;
     }
+    [[nodiscard]] std::optional<NodeStmnt> parse_stmt() {
+
+        // Parse:
+        // set x = expression;
+
+        if (peek() && peek()->type == TypeOfToken::set) {
+
+            consume(); // eat "set"
+
+
+            if (!peek() || peek()->type != TypeOfToken::identifier)
+                throw std::runtime_error("Expected identifier after set");
+
+
+            Token identifier = consume();
+
+
+            if (!peek() || peek()->type != TypeOfToken::equals)
+                throw std::runtime_error("Expected '=' after identifier");
+
+
+            consume(); // eat '='
+
+
+            auto expr = parse_expr();
+
+
+            if (!expr)
+                throw std::runtime_error("Expected expression after '='");
+
+
+            if (!peek() || peek()->type != TypeOfToken::semi)
+                throw std::runtime_error("Expected ';'");
+
+
+            consume(); // eat ';'
+
+
+            return NodeStmnt{
+                NodeStmntLet{
+                    identifier,
+                    expr.value()
+                }
+            };
+        }
+
+
+        // Parse:
+        // exit(expression);
+
+        if (peek() && peek()->type == TypeOfToken::exit) {
+
+            consume(); // eat "exit"
+
+
+            if (!peek() || peek()->type != TypeOfToken::open_paren)
+                throw std::runtime_error("Expected '(' after exit");
+
+
+            consume(); // eat '('
+
+
+            auto expr = parse_expr();
+
+
+            if (!expr)
+                throw std::runtime_error("Expected expression");
+
+
+            if (!peek() || peek()->type != TypeOfToken::close_paren)
+                throw std::runtime_error("Expected ')'");
+
+
+            consume(); // eat ')'
+
+
+            if (!peek() || peek()->type != TypeOfToken::semi)
+                throw std::runtime_error("Expected ';'");
+
+
+            consume(); // eat ';'
+
+
+            return NodeStmnt{
+                NodeStmntExit{
+                    expr.value()
+                }
+            };
+        }
+
+
+        return std::nullopt;
+    }
 
     // Tries to parse the whole program. Right now "the whole program"
     // is just one exit statement: exit(<expr>);
-    [[nodiscard]] std::optional<NodeExit> parse() {
-        std::optional<NodeExit> exit_node;
+    [[nodiscard]] std::optional<NodeProgram> parse() {
 
-        if (!peek() || peek()->type != TypeOfToken::exit)
-            return std::nullopt;
+        NodeProgram program;
 
-        consume(); // eat "exit"
 
-        if (!peek() || peek()->type != TypeOfToken::open_paren)
-            throw std::runtime_error("Expected '(' after exit");
+        while (peek()) {
 
-        consume(); // eat '('
+            auto statement = parse_stmt();
 
-        auto node_expr = parse_expr();
 
-        if (!node_expr)
-            throw std::runtime_error("Invalid expression after exit");
+            if (!statement)
+                throw std::runtime_error("Parsing failed");
 
-        exit_node = NodeExit{
-            node_expr.value()
-        };
 
-        /*
-        If a valid expression
-        is found, it creates a `NodeExit` containing that expression.
-        */
+            program.statements.push_back(
+                statement.value()
+            );
+        }
 
-        if (!peek() || peek()->type != TypeOfToken::close_paren)
-            throw std::runtime_error("Expected ')' after expression");
 
-        consume(); // eat ')'
-
-        if (!peek() || peek()->type != TypeOfToken::semi)
-            throw std::runtime_error("Expected ';'");
-
-        consume(); // eat ';'
-
-        /*
-        Finally, it verifies that the statement ends with a semicolon (`;`).
-        If any required part is missing, a runtime error is thrown.
-        */
-
-        return exit_node;
-
-        /*Parses the entire program according to the current grammar
-
-         At the moment, the language only supports a single statement:
-             exit <expr> ;
-
-         The parser first checks for the `exit` keyword, then parses the
-         expression that follows using `parse_expr()`.
-
-         If the program does not start with `exit`, an empty `optional` is returned.*/
+        return program;
     }
 
 private:
