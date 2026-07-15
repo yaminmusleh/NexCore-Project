@@ -50,10 +50,16 @@ public:
 
                         using ExprType =
                             std::decay_t<decltype(expr)>;
+                        /*
+                        is used in modern C++ to extract the "plain",
+                        clean underlying value type of expression. It strips away all reference wrappers,
+                        constant modifiers (const), and volatile modifiers (volatile),
+                        while also converting arrays and functions into pointers
+                         */
 
 
                         // Handles:
-                        // exit(7);
+                        // exit(7); the value passed into exit() is dealt with here:
 
                         if constexpr (std::is_same_v<ExprType, NodeExprIntLit>) {
 
