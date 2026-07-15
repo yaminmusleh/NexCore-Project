@@ -1,76 +1,138 @@
 #pragma once
+
 #include <vector>
+#include <variant>
 #include <optional>
+#include <memory>
+#include <stdexcept>
+
 #include "tokenization.h"
 
 //we need nodes that represent a single expression.
 
+struct NodeExprBinary;
+
+struct NodeExprIntLit {
+    Token int_lit; // this alone means that the expression should only accept integer literals like 1, 2, 3 etc.
+};
+
+struct NodeExprIdentifier {
+    Token identifier; // represents the variables like x, y, z etc.
+};
+
+using NodeExprVariant = std::variant<
+    NodeExprIntLit,
+    NodeExprIdentifier,
+    std::unique_ptr<NodeExprBinary>
+>;
+
 struct NodeExpr {
-    Token int_lit; // a variable with Type Token. represents the integer literal in the compiler.
+    NodeExprVariant expr;
+};
+
+struct NodeExprBinary {
+    std::unique_ptr<NodeExpr> lhs; // on the left hand side
+    Token op; // operations
+    std::unique_ptr<NodeExpr> rhs; // on the right hand side
+
+    //this represents mathematical operations like 4+3 or x * y etc.
 };
 
 struct NodeExit {
     // represents "exit" statement in the compiler.
     NodeExpr expr;
     //here we put the expression from the node before it inside the exit statement.
-    //exit statement holds the data that got moved into it from the NodeExpr. we will make it a variant of many operations in the future.
 };
+
+/*
+NodeExpr represents the general idea of an "expression".
+
+The std::variant inside NodeExpr can hold exactly ONE expression node type
+at a time. It does not decide which type to store—the parser does.
+
+"When parse_expr() reads the next token(s), it determines what kind of
+expression it has found and constructs the appropriate node."
+
+For example:
+
+    42      -> NodeExpr contains NodeExprIntLit
+    x       -> NodeExpr contains NodeExprIdentifier
+    5 + 3   -> NodeExpr contains NodeExprBinary
+
+No matter what kind of expression is parsed, parse_expr() always returns
+a NodeExpr. The variant remembers the concrete expression type, allowing
+the rest of the compiler to treat everything uniformly as an expression.
+*/
 
 class Parser {
 public:
-    explicit Parser(std::vector<Token> tokens) : p_tokens(std::move(tokens)) {
+    explicit Parser(std::vector<Token> tokens)
+        : p_tokens(std::move(tokens)) {
     }
 
-    // Tries to parse a single expression (currently: just an int_lit).
-    // Returns nullopt if what's next isn't a valid expression.
-    [[nodiscard]] optional<NodeExpr> parse_expr() {
-        if (peek().has_value() && peek()->type == TypeOfToken::int_lit) {
-            return NodeExpr{.int_lit = consume()};
-            //it will take the token and return it back to the struct so the exit then takes that value.
+    // Tries to parse a single expression.
+    // Currently supports:
+    //  - integer literals
+    //  - identifiers
+    [[nodiscard]] std::optional<NodeExpr> parse_expr() {
+        if (peek() && peek()->type == TypeOfToken::int_lit) {
+            return NodeExpr{
+                NodeExprIntLit{consume()}
+            };
         }
-        return {};
+
+        if (peek() && peek()->type == TypeOfToken::identifier) {
+            return NodeExpr{
+                NodeExprIdentifier{consume()}
+            };
+        }
+
+        return std::nullopt;
     }
 
     // Tries to parse the whole program. Right now "the whole program"
-    // is just one exit statement: exit <expr> ;
-    [[nodiscard]] optional<NodeExit> parse() {
-        optional<NodeExit> exit_node;
+    // is just one exit statement: exit(<expr>);
+    [[nodiscard]] std::optional<NodeExit> parse() {
+        std::optional<NodeExit> exit_node;
 
-        if (peek().has_value() && peek()->type == TypeOfToken::exit) {
-            consume(); // eat "exit"
+        if (!peek() || peek()->type != TypeOfToken::exit)
+            return std::nullopt;
 
-            if (peek().has_value() && peek()->type == TypeOfToken::open_paren) {
-                consume(); // eat '('
-            } else {
-                throw std::runtime_error("Expected '(' after exit");
-            }
+        consume(); // eat "exit"
 
-            if (auto node_expr = parse_expr()) {
-                exit_node = NodeExit{.expr = node_expr.value()};
-                /*
-                If a valid expression
-                is found, it creates a `NodeExit` containing that expression.
-                */
-            } else {
-                throw std::runtime_error("Invalid expression after exit");
-            }
+        if (!peek() || peek()->type != TypeOfToken::open_paren)
+            throw std::runtime_error("Expected '(' after exit");
 
-            if (peek().has_value() && peek()->type == TypeOfToken::close_paren) {
-                consume(); // eat ')'
-            } else {
-                throw std::runtime_error("Expected ')' after expression");
-            }
+        consume(); // eat '('
 
-            if (peek().has_value() && peek()->type == TypeOfToken::semi) {
-                consume(); // eat ";"
-            } else {
-                throw std::runtime_error("Expected ';'");
-                /*
-                Finally, it verifies that the statement ends with a semicolon (`;`).
-                If any required part is missing, a runtime error is thrown.
-                */
-            }
-        }
+        auto node_expr = parse_expr();
+
+        if (!node_expr)
+            throw std::runtime_error("Invalid expression after exit");
+
+        exit_node = NodeExit{
+            node_expr.value()
+        };
+
+        /*
+        If a valid expression
+        is found, it creates a `NodeExit` containing that expression.
+        */
+
+        if (!peek() || peek()->type != TypeOfToken::close_paren)
+            throw std::runtime_error("Expected ')' after expression");
+
+        consume(); // eat ')'
+
+        if (!peek() || peek()->type != TypeOfToken::semi)
+            throw std::runtime_error("Expected ';'");
+
+        consume(); // eat ';'
+
+        /*
+        Finally, it verifies that the statement ends with a semicolon (`;`).
+        If any required part is missing, a runtime error is thrown.
+        */
 
         return exit_node;
 
@@ -88,16 +150,16 @@ public:
 private:
     // Same idea as the tokenizer's peek: look at the current token
     // (or one ahead with offset) without consuming it.
-    [[nodiscard]] inline optional<Token> peek(int offset = 0) const {
-        if (m_index + offset < p_tokens.size()) {
+    [[nodiscard]] std::optional<Token> peek(int offset = 0) const {
+        if (m_index + offset < p_tokens.size())
             return p_tokens[m_index + offset];
-        }
-        return {};
+
+        return std::nullopt;
     }
 
     // Same idea as the tokenizer's consume: return the current token
     // and move the index forward.
-    [[nodiscard]] inline Token consume() {
+    [[nodiscard]] Token consume() {
         // it will consume the token not the character like before
         return p_tokens[m_index++];
 
@@ -109,10 +171,9 @@ private:
         */
     }
 
-    vector<Token> p_tokens;
-    size_t m_index = 0;
+    std::vector<Token> p_tokens;
+    std::size_t m_index = 0;
 };
-
 
 /*
  Notes:
