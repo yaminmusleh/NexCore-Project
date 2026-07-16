@@ -49,7 +49,7 @@ public:
                     std::visit([&](auto&& expr) {
 
                         using ExprType =
-                            std::decay_t<decltype(expr)>;
+                            std::decay_t<decltype(expr)>; // instead of writing it all the time, store it with using in a variable;
                         /*
                         is used in modern C++ to extract the "plain",
                         clean underlying value type of expression. It strips away all reference wrappers,
@@ -61,9 +61,13 @@ public:
                         // Handles:
                         // exit(7); the value passed into exit() is dealt with here:
 
-                        if constexpr (std::is_same_v<ExprType, NodeExprIntLit>) {
+                        if constexpr (std::is_same_v<ExprType, NodeExprIntLit>) { // if the expression type was equal to the value stored in int literal node.
 
                             buffer += expr.int_lit.value.value();
+                            //clarifying this code:
+                            //expr.int_lit means get the token
+                            //expr.int_lit.value means get the optional<string> value{}; inside the Token in tokenization.h
+                            //expr.int_lit.value.value() extracts the actual value from the optional<string> value{} which is integer value
 
                         }
 
