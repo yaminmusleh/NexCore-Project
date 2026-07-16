@@ -15,6 +15,7 @@ $$
 \\
 \langle \text{Expression} \rangle
     &\to \langle \text{IntegerLiteral} \rangle
+    \mid \texttt{identifier}
 \\
 \langle \text{IntegerLiteral} \rangle
     &\to \texttt{int\_lit}
