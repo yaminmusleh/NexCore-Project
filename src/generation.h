@@ -19,6 +19,7 @@ public:
                 "section .text\n"
                 "_start:\n";
 
+        bool has_exit = false;
 
         // Linux exit syscall number.
         buffer += "    mov rax, 60\n";
@@ -44,6 +45,7 @@ public:
                 // exit(expression);
                 if constexpr (std::is_same_v<T, NodeStmntExit>) {
 
+                    has_exit = true;
 
                     // The value used by exit is first moved into rbx.
                     buffer += "    mov rbx, ";
@@ -175,6 +177,11 @@ public:
 
         }
 
+        if (!has_exit) {
+
+            buffer += "    mov rdi, 0\n";
+
+        }
 
         // Execute the syscall.
         buffer += "    syscall\n";
