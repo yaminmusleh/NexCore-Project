@@ -1,4 +1,3 @@
 set x = 15;
-set y = 12;
-exit (x);
+set y = x;
 exit (y);
