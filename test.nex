@@ -1,3 +1,4 @@
 set x = 10;
 set y = 5;
+exit (x);
 exit (y);
