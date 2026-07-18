@@ -18,7 +18,11 @@ enum class TypeOfToken {
     open_paren,
     close_paren,
     equals,
-    set
+    set,
+    plus,
+    minus,
+    star,
+    slash
 };
 
 struct Token {
@@ -117,7 +121,7 @@ private: //Everything below this line is accessible from inside the class to the
     }
 
     //implement consume: consume() should return the current character and move forward.
-   inline optional<char> consume() {
+    inline optional<char> consume() {
         if (index < str.length()) {
             return str[index++]; //returns current then increments the index
         }

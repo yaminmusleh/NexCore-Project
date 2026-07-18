@@ -5,7 +5,7 @@
 #include <optional>
 #include <memory>
 #include <stdexcept>
-
+#include <string>
 #include "tokenization.h"
 
 //we need nodes that represent a single expression.
@@ -19,9 +19,18 @@ struct NodeExprIdentifier {
     Token identifier; // represents the variables like x, y, z etc.
 };
 
-struct NodeExpr {
-    std::variant<NodeExprIntLit, NodeExprIdentifier> expr;
+struct NodeExpr;
+
+struct BinaryExpr {
+    std::unique_ptr<NodeExpr> left;
+    std::string op;
+    std::unique_ptr<NodeExpr> right;
 };
+
+struct NodeExpr {
+    std::variant<NodeExprIntLit, NodeExprIdentifier, std::unique_ptr<BinaryExpr> > expr;
+};
+
 
 struct NodeStmntExit {
     NodeExpr expr;
@@ -85,13 +94,12 @@ public:
 
         return std::nullopt;
     }
-    [[nodiscard]] std::optional<NodeStmnt> parse_stmt() {
 
+    [[nodiscard]] std::optional<NodeStmnt> parse_stmt() {
         // Parse:
         // set x = expression;
 
         if (peek() && peek()->type == TypeOfToken::set) {
-
             consume(); // eat "set"
 
 
@@ -126,7 +134,7 @@ public:
             return NodeStmnt{
                 NodeStmntLet{
                     identifier,
-                    expr.value()
+                    std::move(expr.value())
                 }
             };
         }
@@ -136,7 +144,6 @@ public:
         // exit(expression);
 
         if (peek() && peek()->type == TypeOfToken::exit) {
-
             consume(); // eat "exit"
 
 
@@ -170,7 +177,7 @@ public:
 
             return NodeStmnt{
                 NodeStmntExit{
-                    expr.value()
+                    std::move(expr.value())
                 }
             };
         }
@@ -182,12 +189,10 @@ public:
     // Tries to parse the whole program. Right now "the whole program"
     // is just one exit statement: exit(<expr>);
     [[nodiscard]] std::optional<NodeProgram> parse() {
-
         NodeProgram program;
 
 
         while (peek()) {
-
             auto statement = parse_stmt();
 
 
@@ -196,7 +201,7 @@ public:
 
 
             program.statements.push_back(
-                statement.value()
+                std::move(*statement)
             );
         }
 
