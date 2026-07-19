@@ -7,10 +7,10 @@
 #include <stdexcept>
 #include <string>
 #include "tokenization.h"
+#include "arena.h"
+
 
 //we need nodes that represent a single expression.
-
-
 struct NodeExprIntLit {
     Token int_lit; // this alone means that the expression should only accept integer literals like 1, 2, 3 etc.
 };
