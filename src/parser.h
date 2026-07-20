@@ -3,9 +3,9 @@
 #include <vector>
 #include <variant>
 #include <optional>
-#include <memory>
 #include <stdexcept>
 #include <string>
+#include <new>
 #include "tokenization.h"
 #include "arena.h"
 
@@ -22,23 +22,23 @@ struct NodeExprIdentifier {
 struct NodeExpr;
 
 struct BinaryExpr {
-    std::unique_ptr<NodeExpr> left;
+    NodeExpr* left;
     std::string op;
-    std::unique_ptr<NodeExpr> right;
+    NodeExpr* right;
 };
 
 struct NodeExpr {
-    std::variant<NodeExprIntLit, NodeExprIdentifier, std::unique_ptr<BinaryExpr> > expr;
+    std::variant<NodeExprIntLit, NodeExprIdentifier, BinaryExpr*> expr;
 };
 
 
 struct NodeStmntExit {
-    NodeExpr expr;
+    NodeExpr* expr;
 };
 
 struct NodeStmntLet {
     Token identifier;
-    NodeExpr expr;
+    NodeExpr* expr;
 };
 
 struct NodeStmnt {
@@ -46,7 +46,7 @@ struct NodeStmnt {
 };
 
 struct NodeProgram {
-    std::vector<NodeStmnt> statements;
+    std::vector<NodeStmnt*> statements;
 };
 
 /*
@@ -69,37 +69,61 @@ a NodeExpr. The variant remembers the concrete expression type, allowing
 the rest of the compiler to treat everything uniformly as an expression.
 */
 
+
 class Parser {
 public:
-    explicit Parser(std::vector<Token> tokens)
-        : p_tokens(std::move(tokens)) {
+
+    Parser(std::vector<Token> tokens, ArenaAllocator& arena)
+        : p_tokens(std::move(tokens)),
+          m_arena(arena)
+    {
     }
+
 
     // Tries to parse a single expression.
     // Currently supports:
     //  - integer literals
     //  - identifiers
-    [[nodiscard]] std::optional<NodeExpr> parse_expr() {
+    [[nodiscard]] NodeExpr* parse_expr() {
+
         if (peek() && peek()->type == TypeOfToken::int_lit) {
-            return NodeExpr{
+
+            NodeExpr* memory = m_arena.alloc<NodeExpr>();
+
+            if (!memory)
+                throw std::bad_alloc{};
+
+            return new(memory) NodeExpr{
                 NodeExprIntLit{consume()}
             };
         }
 
+
         if (peek() && peek()->type == TypeOfToken::identifier) {
-            return NodeExpr{
+
+            NodeExpr* memory = m_arena.alloc<NodeExpr>();
+
+            if (!memory)
+                throw std::bad_alloc{};
+
+            return new(memory) NodeExpr{
                 NodeExprIdentifier{consume()}
             };
         }
 
-        return std::nullopt;
+
+        return nullptr;
     }
 
-    [[nodiscard]] std::optional<NodeStmnt> parse_stmt() {
+
+
+    [[nodiscard]] NodeStmnt* parse_stmt() {
+
         // Parse:
         // set x = expression;
 
         if (peek() && peek()->type == TypeOfToken::set) {
+
             consume(); // eat "set"
 
 
@@ -117,7 +141,7 @@ public:
             consume(); // eat '='
 
 
-            auto expr = parse_expr();
+            NodeExpr* expr = parse_expr();
 
 
             if (!expr)
@@ -131,19 +155,27 @@ public:
             consume(); // eat ';'
 
 
-            return NodeStmnt{
+            NodeStmnt* memory = m_arena.alloc<NodeStmnt>();
+
+            if (!memory)
+                throw std::bad_alloc{};
+
+
+            return new(memory) NodeStmnt{
                 NodeStmntLet{
                     identifier,
-                    std::move(expr.value())
+                    expr
                 }
             };
         }
+
 
 
         // Parse:
         // exit(expression);
 
         if (peek() && peek()->type == TypeOfToken::exit) {
+
             consume(); // eat "exit"
 
 
@@ -154,7 +186,7 @@ public:
             consume(); // eat '('
 
 
-            auto expr = parse_expr();
+            NodeExpr* expr = parse_expr();
 
 
             if (!expr)
@@ -175,67 +207,94 @@ public:
             consume(); // eat ';'
 
 
-            return NodeStmnt{
+            NodeStmnt* memory = m_arena.alloc<NodeStmnt>();
+
+            if (!memory)
+                throw std::bad_alloc{};
+
+
+            return new(memory) NodeStmnt{
                 NodeStmntExit{
-                    std::move(expr.value())
+                    expr
                 }
             };
         }
 
 
-        return std::nullopt;
+        return nullptr;
     }
 
-    // Tries to parse the whole program. Right now "the whole program"
-    // is just one exit statement: exit(<expr>);
-    [[nodiscard]] std::optional<NodeProgram> parse() {
+
+
+    // Tries to parse the whole program.
+    // Currently supports multiple statements:
+    // set x = expression;
+    // exit(expression);
+    [[nodiscard]] NodeProgram parse() {
+
         NodeProgram program;
 
 
         while (peek()) {
-            auto statement = parse_stmt();
+
+            NodeStmnt* statement = parse_stmt();
 
 
             if (!statement)
                 throw std::runtime_error("Parsing failed");
 
 
-            program.statements.push_back(
-                std::move(*statement)
-            );
+            program.statements.push_back(statement);
         }
 
 
         return program;
     }
 
+
+
 private:
+
     // Same idea as the tokenizer's peek: look at the current token
     // (or one ahead with offset) without consuming it.
     [[nodiscard]] std::optional<Token> peek(int offset = 0) const {
+
         if (m_index + offset < p_tokens.size())
             return p_tokens[m_index + offset];
+
 
         return std::nullopt;
     }
 
+
+
     // Same idea as the tokenizer's consume: return the current token
     // and move the index forward.
     [[nodiscard]] Token consume() {
+
         // it will consume the token not the character like before
         return p_tokens[m_index++];
 
         /*
         peek() returns optional<Token>, consume() returns Token directly (not optional) — because by the time I call consume(),
         I should've already checked peek() confirms a token exists.
+
         If I call consume() past the end here it'll crash (out-of-bounds),
         unlike the tokenizer's consume() which safely returns {}.
         */
     }
 
+
+
     std::vector<Token> p_tokens;
     std::size_t m_index = 0;
+
+    // The arena is owned outside the parser.
+    // This keeps AST nodes alive after parsing finishes.
+    ArenaAllocator& m_arena;
 };
+
+
 
 /*
  Notes:
@@ -245,10 +304,12 @@ private:
 An exit statement contains an expression.
 Right now the expression is just an integer literal, but later it could be
 an identifier (x), a binary operation (5 + 3), a function call, etc.
+
 By storing a NodeExpr instead of a Token, we can extend the language
 without changing the structure of NodeExit.
+
 struct NodeExit {
     NodeExpr expr;
 };
 
- */
+*/
