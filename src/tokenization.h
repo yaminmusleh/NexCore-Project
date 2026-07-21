@@ -96,6 +96,18 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '=') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::equals, "="});
+            } else if (c == '+') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::plus, "+"});
+            } else if (c == '-') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::minus, "-"});
+            } else if (c == '*') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::star, "*"});
+            } else if (c == '/') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::slash, "/"});
             } else {
                 consume(); // skip unknown characters.
             }

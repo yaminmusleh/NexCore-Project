@@ -22,23 +22,23 @@ struct NodeExprIdentifier {
 struct NodeExpr;
 
 struct BinaryExpr {
-    NodeExpr* left;
+    NodeExpr *left;
     std::string op;
-    NodeExpr* right;
+    NodeExpr *right;
 };
 
 struct NodeExpr {
-    std::variant<NodeExprIntLit, NodeExprIdentifier, BinaryExpr*> expr;
+    std::variant<NodeExprIntLit, NodeExprIdentifier, BinaryExpr *> expr;
 };
 
 
 struct NodeStmntExit {
-    NodeExpr* expr;
+    NodeExpr *expr;
 };
 
 struct NodeStmntLet {
     Token identifier;
-    NodeExpr* expr;
+    NodeExpr *expr;
 };
 
 struct NodeStmnt {
@@ -46,7 +46,7 @@ struct NodeStmnt {
 };
 
 struct NodeProgram {
-    std::vector<NodeStmnt*> statements;
+    std::vector<NodeStmnt *> statements;
 };
 
 /*
@@ -72,23 +72,73 @@ the rest of the compiler to treat everything uniformly as an expression.
 
 class Parser {
 public:
-
-    Parser(std::vector<Token> tokens, ArenaAllocator& arena)
+    Parser(std::vector<Token> tokens, ArenaAllocator &arena)
         : p_tokens(std::move(tokens)),
-          m_arena(arena)
-    {
+          m_arena(arena) {
     }
 
+    BinaryExpr* parse_binary_expr(NodeExpr* left) {
+
+        Token op = consume();
+
+        NodeExpr* right = parse_primary();
+
+        if (!right)
+            throw std::runtime_error("Expected expression after operator");
+
+        BinaryExpr* memory = m_arena.alloc<BinaryExpr>();
+
+        if (!memory)
+            throw std::bad_alloc{};
+
+        return new(memory) BinaryExpr{
+            left,
+            op.value.value(),
+            right
+        };
+    }
+
+    [[nodiscard]] NodeExpr* parse_expr() {
+
+        NodeExpr* left = parse_primary();
+
+        if (!left)
+            return nullptr;
+
+        while (peek()) {
+
+            TypeOfToken type = peek()->type;
+
+            if (type != TypeOfToken::plus &&
+                type != TypeOfToken::minus &&
+                type != TypeOfToken::star &&
+                type != TypeOfToken::slash)
+            {
+                break;
+            }
+
+            BinaryExpr* binary = parse_binary_expr(left);
+
+            NodeExpr* memory = m_arena.alloc<NodeExpr>();
+
+            if (!memory)
+                throw std::bad_alloc{};
+
+            left = new(memory) NodeExpr{
+                binary
+            };
+        }
+
+        return left;
+    }
 
     // Tries to parse a single expression.
     // Currently supports:
     //  - integer literals
     //  - identifiers
-    [[nodiscard]] NodeExpr* parse_expr() {
-
+    [[nodiscard]] NodeExpr *parse_primary() {
         if (peek() && peek()->type == TypeOfToken::int_lit) {
-
-            NodeExpr* memory = m_arena.alloc<NodeExpr>();
+            NodeExpr *memory = m_arena.alloc<NodeExpr>();
 
             if (!memory)
                 throw std::bad_alloc{};
@@ -100,8 +150,7 @@ public:
 
 
         if (peek() && peek()->type == TypeOfToken::identifier) {
-
-            NodeExpr* memory = m_arena.alloc<NodeExpr>();
+            NodeExpr *memory = m_arena.alloc<NodeExpr>();
 
             if (!memory)
                 throw std::bad_alloc{};
@@ -112,18 +161,16 @@ public:
         }
 
 
+
         return nullptr;
     }
 
 
-
-    [[nodiscard]] NodeStmnt* parse_stmt() {
-
+    [[nodiscard]] NodeStmnt *parse_stmt() {
         // Parse:
         // set x = expression;
 
         if (peek() && peek()->type == TypeOfToken::set) {
-
             consume(); // eat "set"
 
 
@@ -141,7 +188,7 @@ public:
             consume(); // eat '='
 
 
-            NodeExpr* expr = parse_expr();
+            NodeExpr *expr = parse_expr();
 
 
             if (!expr)
@@ -155,7 +202,7 @@ public:
             consume(); // eat ';'
 
 
-            NodeStmnt* memory = m_arena.alloc<NodeStmnt>();
+            NodeStmnt *memory = m_arena.alloc<NodeStmnt>();
 
             if (!memory)
                 throw std::bad_alloc{};
@@ -170,12 +217,10 @@ public:
         }
 
 
-
         // Parse:
         // exit(expression);
 
         if (peek() && peek()->type == TypeOfToken::exit) {
-
             consume(); // eat "exit"
 
 
@@ -186,7 +231,7 @@ public:
             consume(); // eat '('
 
 
-            NodeExpr* expr = parse_expr();
+            NodeExpr *expr = parse_expr();
 
 
             if (!expr)
@@ -207,7 +252,7 @@ public:
             consume(); // eat ';'
 
 
-            NodeStmnt* memory = m_arena.alloc<NodeStmnt>();
+            NodeStmnt *memory = m_arena.alloc<NodeStmnt>();
 
             if (!memory)
                 throw std::bad_alloc{};
@@ -225,19 +270,16 @@ public:
     }
 
 
-
     // Tries to parse the whole program.
     // Currently supports multiple statements:
     // set x = expression;
     // exit(expression);
     [[nodiscard]] NodeProgram parse() {
-
         NodeProgram program;
 
 
         while (peek()) {
-
-            NodeStmnt* statement = parse_stmt();
+            NodeStmnt *statement = parse_stmt();
 
 
             if (!statement)
@@ -251,14 +293,10 @@ public:
         return program;
     }
 
-
-
 private:
-
     // Same idea as the tokenizer's peek: look at the current token
     // (or one ahead with offset) without consuming it.
     [[nodiscard]] std::optional<Token> peek(int offset = 0) const {
-
         if (m_index + offset < p_tokens.size())
             return p_tokens[m_index + offset];
 
@@ -267,11 +305,9 @@ private:
     }
 
 
-
     // Same idea as the tokenizer's consume: return the current token
     // and move the index forward.
     [[nodiscard]] Token consume() {
-
         // it will consume the token not the character like before
         return p_tokens[m_index++];
 
@@ -285,15 +321,13 @@ private:
     }
 
 
-
     std::vector<Token> p_tokens;
     std::size_t m_index = 0;
 
     // The arena is owned outside the parser.
     // This keeps AST nodes alive after parsing finishes.
-    ArenaAllocator& m_arena;
+    ArenaAllocator &m_arena;
 };
-
 
 
 /*
