@@ -4,7 +4,6 @@
 #include<optional>
 #include<vector>
 #include<cctype>
-#include <stdexcept>
 #include "./tokenization.h"
 #include "./parser.h"
 #include "./generation.h"
