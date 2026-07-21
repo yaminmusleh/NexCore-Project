@@ -33,7 +33,7 @@ public:
         // Each statement is stored inside NodeStmnt's variant,
         // so we use std::visit to find out what type it is.
 
-        for (const auto &statement: m_root.statements) {
+        for (const auto* statement: m_root.statements) {
             if (has_exit) break;
             std::visit([&](auto &&stmt) {
                 using T = std::decay_t<decltype(stmt)>;
@@ -97,7 +97,7 @@ public:
                                 buffer += "]\n";
                             }
                         }
-                    }, stmt.expr.expr);
+                    }, stmt.expr->expr);
 
 
                     // Push the value stored in rbx onto the stack.
@@ -162,9 +162,9 @@ public:
 
                             m_variables[name] = Var{m_stackSize - 1};
                         }
-                    }, stmt.expr.expr);
+                    }, stmt.expr->expr);
                 }
-            }, statement.stmnt);
+            }, statement->stmnt);
         }
 
         if (!has_exit) {

@@ -43,16 +43,13 @@ int main(int argc, char *argv[]) {
         cout << '\n';
     }
 
-    Parser parser(std::move(tokens));
+    ArenaAllocator arena(1024 * 1024);
+    Parser parser(std::move(tokens),arena);
 
-    auto root = parser.parse();
+    NodeProgram root = parser.parse();
 
-    if (!root) {
-        std::cerr << "Parsing failed.\n";
-        return EXIT_FAILURE;
-    }
 
-    Generator generator(std::move(root.value())); // passing the root value for the generator
+    Generator generator(std::move(root)); // passing the root value for the generator
 
     {
         fstream file2("out.asm", ios::out); // we want the output to become an assembly separate file
