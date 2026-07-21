@@ -16,7 +16,7 @@ public:
 
     [[nodiscard]] std::string generate() {
         m_variables.clear();
-        m_stackSize = 0;
+        m_variableCount = 0;
 
         std::string buffer =
                 "global _start\n"
@@ -25,10 +25,6 @@ public:
 
 
         bool has_exit = false;
-
-
-        // Linux exit syscall
-        buffer += "    mov rax, 60\n";
 
 
         for (const auto *statement: m_root.statements) {
@@ -72,12 +68,13 @@ public:
 
 
                     // Store variable value
-                    push(buffer, "rbx");
-
+                    buffer += "    push rbx\n";
 
                     m_variables[name] = Var{
-                        m_stackSize - 1
+                        m_variableCount
                     };
+
+                    m_variableCount++;
                 }
             }, statement->stmnt);
         }
@@ -87,7 +84,7 @@ public:
             buffer += "    mov rdi, 0\n";
         }
 
-
+        buffer += "    mov rax, 60\n";
         buffer += "    syscall\n";
 
 
@@ -106,17 +103,12 @@ public:
 
 
 private:
-    void push(std::string &buffer, const std::string &value) {
+    void push_temp(std::string &buffer, const std::string &value) {
         buffer += "    push " + value + "\n";
-        ++m_stackSize;
     }
 
-    void pop(std::string &buffer, const std::string &reg) {
-        if (m_stackSize == 0)
-            throw std::runtime_error("Stack underflow.");
-
+    void pop_temp(std::string &buffer, const std::string &reg) {
         buffer += "    pop " + reg + "\n";
-        --m_stackSize;
     }
 
     struct Var {
@@ -142,7 +134,7 @@ private:
                     throw std::runtime_error("Unknown variable: " + name);
 
                 Var var = m_variables[name];
-                size_t offset = m_stackSize - var.stackSlot - 1;
+                size_t offset = m_variableCount - var.stackSlot - 1;
 
                 if (offset == 0)
                     buffer += "    mov rbx, [rsp]\n";
@@ -156,11 +148,9 @@ private:
             // Binary expression
             else if constexpr (std::is_same_v<T, BinaryExpr *>) {
                 generate_expr(node->left, buffer);
-                push(buffer, "rbx");
-
+                push_temp(buffer, "rbx");
                 generate_expr(node->right, buffer);
-                pop(buffer, "rax");
-
+                pop_temp(buffer, "rax");
                 if (node->op == "+")
                     buffer += "    add rax, rbx\n";
                 else if (node->op == "-")
@@ -180,5 +170,6 @@ private:
 
     NodeProgram m_root;
     std::unordered_map<std::string, Var> m_variables;
-    size_t m_stackSize = 0;
+
+    size_t m_variableCount = 0;
 };
