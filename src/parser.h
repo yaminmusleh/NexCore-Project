@@ -77,57 +77,97 @@ public:
           m_arena(arena) {
     }
 
-    BinaryExpr* parse_binary_expr(NodeExpr* left) {
 
-        Token op = consume();
+    [[nodiscard]] NodeExpr* parse_expr()
+    {
+        NodeExpr* left = parse_term();
 
-        NodeExpr* right = parse_primary();
-
-        if (!right)
-            throw std::runtime_error("Expected expression after operator");
-
-        BinaryExpr* memory = m_arena.alloc<BinaryExpr>();
-
-        if (!memory)
-            throw std::bad_alloc{};
-
-        return new(memory) BinaryExpr{
-            left,
-            op.value.value(),
-            right
-        };
-    }
-
-    [[nodiscard]] NodeExpr* parse_expr() {
-
-        NodeExpr* left = parse_primary();
-
-        if (!left)
-            return nullptr;
-
-        while (peek()) {
-
+        while (peek())
+        {
             TypeOfToken type = peek()->type;
 
             if (type != TypeOfToken::plus &&
-                type != TypeOfToken::minus &&
-                type != TypeOfToken::star &&
-                type != TypeOfToken::slash)
-            {
+                type != TypeOfToken::minus)
                 break;
-            }
 
-            BinaryExpr* binary = parse_binary_expr(left);
 
-            NodeExpr* memory = m_arena.alloc<NodeExpr>();
+            Token op = consume();
 
-            if (!memory)
+            NodeExpr* right = parse_term();
+
+            if (!right)
+                throw std::runtime_error("Expected expression");
+
+
+            BinaryExpr* binary = m_arena.alloc<BinaryExpr>();
+
+            if (!binary)
                 throw std::bad_alloc{};
 
-            left = new(memory) NodeExpr{
+            new(binary) BinaryExpr{
+                left,
+                op.value.value(),
+                right
+            };
+
+
+            NodeExpr* expr = m_arena.alloc<NodeExpr>();
+
+            left = new(expr) NodeExpr{
                 binary
             };
         }
+
+        return left;
+    }
+
+    NodeExpr* parse_term()
+    {
+        NodeExpr* left = parse_primary();
+
+     
+
+        if (!left)
+            throw std::runtime_error("Expected expression");
+
+        while (peek())
+        {
+            TypeOfToken type = peek()->type;
+
+
+            if (type != TypeOfToken::star &&
+                type != TypeOfToken::slash)
+                break;
+
+
+            Token op = consume();
+
+            NodeExpr* right = parse_primary();
+
+            if (!right)
+                throw std::runtime_error("Expected expression after operator");
+
+
+            BinaryExpr* binary = m_arena.alloc<BinaryExpr>();
+
+            if (!binary)
+                throw std::bad_alloc{};
+            new(binary) BinaryExpr{
+                left,
+                op.value.value(),
+                right
+            };
+
+
+            NodeExpr* expr = m_arena.alloc<NodeExpr>();
+            if (!expr)
+                throw std::bad_alloc{};
+
+            left = new(expr) NodeExpr{
+                binary
+            };
+        }
+
 
         return left;
     }
@@ -148,6 +188,19 @@ public:
             };
         }
 
+        if (peek() && peek()->type == TypeOfToken::open_paren)
+        {
+            consume();
+
+            NodeExpr* expr = parse_expr();
+
+            if (!peek() || peek()->type != TypeOfToken::close_paren)
+                throw std::runtime_error("Expected ')'");
+
+            consume();
+
+            return expr;
+        }
 
         if (peek() && peek()->type == TypeOfToken::identifier) {
             NodeExpr *memory = m_arena.alloc<NodeExpr>();
