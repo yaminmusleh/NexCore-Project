@@ -22,7 +22,9 @@ enum class TypeOfToken {
     plus,
     minus,
     star,
-    slash
+    slash,
+    open_scope,
+    close_scope
 };
 
 struct Token {
@@ -108,6 +110,12 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '/') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::slash, "/"});
+            } else if (c == '{') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::open_scope, "{"});
+            } else if (c == '}') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::close_scope, "}"});
             } else {
                 consume(); // skip unknown characters.
             }

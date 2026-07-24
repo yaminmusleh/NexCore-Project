@@ -41,8 +41,14 @@ struct NodeStmntLet {
     NodeExpr *expr;
 };
 
+struct NodeScope;
+
 struct NodeStmnt {
-    std::variant<NodeStmntExit, NodeStmntLet> stmnt;
+    std::variant<NodeStmntExit, NodeStmntLet, NodeScope *> stmnt;
+};
+
+struct NodeScope {
+    std::vector<NodeStmnt *> statements;
 };
 
 struct NodeProgram {
@@ -78,12 +84,10 @@ public:
     }
 
 
-    [[nodiscard]] NodeExpr* parse_expr()
-    {
-        NodeExpr* left = parse_term();
+    [[nodiscard]] NodeExpr *parse_expr() {
+        NodeExpr *left = parse_term();
 
-        while (peek())
-        {
+        while (peek()) {
             TypeOfToken type = peek()->type;
 
             if (type != TypeOfToken::plus &&
@@ -93,13 +97,13 @@ public:
 
             Token op = consume();
 
-            NodeExpr* right = parse_term();
+            NodeExpr *right = parse_term();
 
             if (!right)
                 throw std::runtime_error("Expected expression");
 
 
-            BinaryExpr* binary = m_arena.alloc<BinaryExpr>();
+            BinaryExpr *binary = m_arena.alloc<BinaryExpr>();
 
             if (!binary)
                 throw std::bad_alloc{};
@@ -111,7 +115,7 @@ public:
             };
 
 
-            NodeExpr* expr = m_arena.alloc<NodeExpr>();
+            NodeExpr *expr = m_arena.alloc<NodeExpr>();
 
             left = new(expr) NodeExpr{
                 binary
@@ -121,17 +125,14 @@ public:
         return left;
     }
 
-    NodeExpr* parse_term()
-    {
-        NodeExpr* left = parse_primary();
+    NodeExpr *parse_term() {
+        NodeExpr *left = parse_primary();
 
-     
 
         if (!left)
             throw std::runtime_error("Expected expression");
 
-        while (peek())
-        {
+        while (peek()) {
             TypeOfToken type = peek()->type;
 
 
@@ -142,13 +143,13 @@ public:
 
             Token op = consume();
 
-            NodeExpr* right = parse_primary();
+            NodeExpr *right = parse_primary();
 
             if (!right)
                 throw std::runtime_error("Expected expression after operator");
 
 
-            BinaryExpr* binary = m_arena.alloc<BinaryExpr>();
+            BinaryExpr *binary = m_arena.alloc<BinaryExpr>();
 
             if (!binary)
                 throw std::bad_alloc{};
@@ -159,7 +160,7 @@ public:
             };
 
 
-            NodeExpr* expr = m_arena.alloc<NodeExpr>();
+            NodeExpr *expr = m_arena.alloc<NodeExpr>();
             if (!expr)
                 throw std::bad_alloc{};
 
@@ -170,6 +171,31 @@ public:
 
 
         return left;
+    }
+
+    [[nodiscard]] NodeScope parse_scope() {
+        if (!peek() || peek()->type != TypeOfToken::open_scope)
+            throw std::runtime_error("Expected '{'");
+
+        consume(); // {
+
+        NodeScope scope;
+
+        while (peek() && peek()->type != TypeOfToken::close_scope) {
+            NodeStmnt *stmt = parse_stmt();
+
+            if (!stmt)
+                throw std::runtime_error("Expected statement");
+
+            scope.statements.push_back(stmt);
+        }
+
+        if (!peek())
+            throw std::runtime_error("Expected '}'");
+
+        consume(); // }
+
+        return scope;
     }
 
     // Tries to parse a single expression.
@@ -188,11 +214,10 @@ public:
             };
         }
 
-        if (peek() && peek()->type == TypeOfToken::open_paren)
-        {
+        if (peek() && peek()->type == TypeOfToken::open_paren) {
             consume();
 
-            NodeExpr* expr = parse_expr();
+            NodeExpr *expr = parse_expr();
 
             if (!peek() || peek()->type != TypeOfToken::close_paren)
                 throw std::runtime_error("Expected ')'");
@@ -214,12 +239,30 @@ public:
         }
 
 
-
         return nullptr;
     }
 
 
     [[nodiscard]] NodeStmnt *parse_stmt() {
+
+        if (peek() && peek()->type == TypeOfToken::open_scope)
+        {
+            NodeScope parsed = parse_scope();
+
+            NodeScope* scope = m_arena.alloc<NodeScope>();
+
+            if (!scope)
+                throw std::bad_alloc{};
+
+            new(scope) NodeScope(std::move(parsed));
+
+            NodeStmnt* stmt = m_arena.alloc<NodeStmnt>();
+
+            if (!stmt)
+                throw std::bad_alloc{};
+
+            return new(stmt) NodeStmnt{scope};
+        }
         // Parse:
         // set x = expression;
 
