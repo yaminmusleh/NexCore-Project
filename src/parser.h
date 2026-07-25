@@ -279,12 +279,12 @@ public:
 
         Token op = consume();
 
-        NodeExpr* right = parse_expr();
+        NodeExpr *right = parse_expr();
 
         if (!right)
             throw std::runtime_error("Expected expression");
 
-        NodeCondition* cond = m_arena.alloc<NodeCondition>();
+        NodeCondition *cond = m_arena.alloc<NodeCondition>();
 
         if (!cond)
             throw std::bad_alloc{};
@@ -318,7 +318,38 @@ public:
         // set x = expression;
 
         if (peek() && peek()->type == TypeOfToken::iff_kw) {
-            //inserting if statement here.
+            //consuming iff keyword (if and only if)
+            consume();
+            if (!peek() || peek()->type != TypeOfToken::open_paren) //expecting a "("
+                throw std::runtime_error("Expected '(' after iff");
+
+            consume();
+
+            NodeCondition *condition = parse_condition(); // parsing a condition (condition...
+            if (!peek() || peek()->type != TypeOfToken::close_paren) // expecting a ")"
+                throw std::runtime_error("Expected ')' after iff");
+
+            consume(); // so it will be iff(condition)
+
+            NodeScope parsed = parse_scope(); // this is scope iff(condition) {   }
+
+            NodeScope *scope = m_arena.alloc<NodeScope>();
+
+            if (!scope)
+                throw std::bad_alloc{};
+
+            new(scope) NodeScope(std::move(parsed));
+
+            NodeStmntIf *iff_stmnt = m_arena.alloc<NodeStmntIf>();
+
+            if (!iff_stmnt)
+                throw std::bad_alloc{};
+            new(iff_stmnt) NodeStmntIf{condition, scope};
+
+            NodeStmnt *stmnt = m_arena.alloc<NodeStmnt>();
+            if (!stmnt)
+                throw std::bad_alloc{};
+            return new(stmnt) NodeStmnt{iff_stmnt};
         }
 
         if (peek() && peek()->type == TypeOfToken::set) {
