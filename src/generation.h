@@ -12,14 +12,12 @@
 
 class Generator {
 public:
-
     inline explicit Generator(NodeProgram root)
         : m_root(std::move(root)) {
     }
 
 
     [[nodiscard]] std::string generate() {
-
         m_scopes.clear();
         m_scopes.emplace_back();
 
@@ -40,8 +38,7 @@ public:
         // Generate every statement in the program.
         // Statements can contain nested scopes, so generate_statement()
         // handles recursion.
-        for (auto statement : m_root.statements) {
-
+        for (auto statement: m_root.statements) {
             if (has_exit)
                 break;
 
@@ -64,11 +61,7 @@ public:
         return buffer;
     }
 
-
-
 private:
-
-
     // Generates temporary values.
     //
     // Example:
@@ -78,10 +71,8 @@ private:
     // This temporarily stores a value while another
     // expression is being calculated.
     void push_temp(std::string &buffer, const std::string &value) {
-
         buffer += "    push " + value + "\n";
     }
-
 
 
     // Removes a temporary value from the stack.
@@ -93,14 +84,11 @@ private:
     // This takes the top temporary value and places it
     // into the requested register.
     void pop_temp(std::string &buffer, const std::string &reg) {
-
         buffer += "    pop " + reg + "\n";
     }
 
 
-
     struct Var {
-
         // The position of the variable relative to rbp.
         //
         // Example:
@@ -113,7 +101,6 @@ private:
         //
         size_t offset;
     };
-
 
 
     // Generates a single statement.
@@ -129,18 +116,12 @@ private:
     void generate_statement(NodeStmnt *statement,
                             std::string &buffer,
                             bool &has_exit) {
-
-
         std::visit([&](auto &&stmt) {
-
             using T = std::decay_t<decltype(stmt)>;
-
 
 
             // exit(expression);
             if constexpr (std::is_same_v<T, NodeStmntExit>) {
-
-
                 has_exit = true;
 
 
@@ -152,20 +133,15 @@ private:
             }
 
 
-
             // set variable = expression;
             else if constexpr (std::is_same_v<T, NodeStmntLet>) {
-
-
                 std::string name =
                         stmt.identifier.value.value();
-
 
 
                 // Generate the expression first.
                 // The result will be placed inside rbx.
                 generate_expr(stmt.expr, buffer);
-
 
 
                 // Reserve 8 bytes on the stack
@@ -186,16 +162,13 @@ private:
                 buffer += "], rbx\n";
 
 
-
                 m_variableCount++;
-
 
 
                 // Remember where this variable lives.
                 m_scopes.back()[name] =
                         Var{m_variableCount * 8};
             }
-
 
 
             // A scope creates a new variable area.
@@ -208,17 +181,11 @@ private:
             //
             // Variables inside the scope should not
             // be visible outside.
-            else if constexpr (std::is_same_v<T, NodeScope*>) {
-
-
-
+            else if constexpr (std::is_same_v<T, NodeScope *>) {
                 m_scopes.emplace_back();
 
 
-
-                for (auto child : stmt->statements) {
-
-
+                for (auto child: stmt->statements) {
                     if (has_exit)
                         break;
 
@@ -227,17 +194,10 @@ private:
                 }
 
 
-
                 m_scopes.pop_back();
             }
-
-
-
         }, statement->stmnt);
     }
-
-
-
 
 
     // Generates expressions.
@@ -252,14 +212,8 @@ private:
     //
     void generate_expr(NodeExpr *expr,
                        std::string &buffer) {
-
-
-
         std::visit([&](auto &&node) {
-
-
             using T = std::decay_t<decltype(node)>;
-
 
 
             // Integer literal.
@@ -272,13 +226,10 @@ private:
             //
             // mov rbx, 123
             if constexpr (std::is_same_v<T, NodeExprIntLit>) {
-
-
                 buffer += "    mov rbx, ";
                 buffer += node.int_lit.value.value();
                 buffer += "\n";
             }
-
 
 
             // Identifier.
@@ -289,22 +240,17 @@ private:
             //
             // loads the stored value from memory.
             else if constexpr (std::is_same_v<T, NodeExprIdentifier>) {
-
-
                 std::string name =
                         node.identifier.value.value();
 
 
-
                 Var var = lookup(name);
-
 
 
                 buffer += "    mov rbx, [rbp - ";
                 buffer += std::to_string(var.offset);
                 buffer += "]\n";
             }
-
 
 
             // Binary expression.
@@ -316,10 +262,7 @@ private:
             // Calculates:
             //
             // left operator right
-            else if constexpr (std::is_same_v<T, BinaryExpr*>) {
-
-
-
+            else if constexpr (std::is_same_v<T, BinaryExpr *>) {
                 generate_expr(node->left, buffer);
 
 
@@ -327,58 +270,34 @@ private:
                 push_temp(buffer, "rbx");
 
 
-
                 generate_expr(node->right, buffer);
-
 
 
                 // Restore left side into rax.
                 pop_temp(buffer, "rax");
 
 
-
                 if (node->op == "+") {
-
                     buffer += "    add rax, rbx\n";
-                }
-
-                else if (node->op == "-") {
-
+                } else if (node->op == "-") {
                     buffer += "    sub rax, rbx\n";
-                }
-
-                else if (node->op == "*") {
-
+                } else if (node->op == "*") {
                     buffer += "    imul rax, rbx\n";
-                }
-
-                else if (node->op == "/") {
-
-
+                } else if (node->op == "/") {
                     buffer += "    cqo\n";
                     buffer += "    idiv rbx\n";
-                }
-
-                else {
-
+                } else {
                     throw std::runtime_error(
-                            "Unknown binary operator"
+                        "Unknown binary operator"
                     );
                 }
-
 
 
                 // The final result is always kept in rbx.
                 buffer += "    mov rbx, rax\n";
             }
-
-
-
         }, expr->expr);
     }
-
-
-
 
 
     // Finds a variable by searching from the newest scope
@@ -392,16 +311,10 @@ private:
     //
     // to temporarily hide an outer variable named a.
     Var lookup(const std::string &name) {
-
-
         for (auto it = m_scopes.rbegin();
              it != m_scopes.rend();
              ++it) {
-
-
-
             auto found = it->find(name);
-
 
 
             if (found != it->end())
@@ -409,21 +322,17 @@ private:
         }
 
 
-
         throw std::runtime_error(
-                "Unknown variable: " + name
+            "Unknown variable: " + name
         );
     }
-
 
 
     NodeProgram m_root;
 
 
-
     // Stores variables for each scope.
-    std::vector<std::unordered_map<std::string, Var>> m_scopes;
-
+    std::vector<std::unordered_map<std::string, Var> > m_scopes;
 
 
     // Counts how many variables exist.

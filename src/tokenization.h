@@ -24,7 +24,14 @@ enum class TypeOfToken {
     star,
     slash,
     open_scope,
-    close_scope
+    close_scope,
+    iff_kw,
+    less,
+    greater,
+    great_or_equal,
+    less_or_equal,
+    bang_equal, // !=
+    condition_equal // ==
 };
 
 struct Token {
@@ -75,6 +82,8 @@ public: //Everything below this line is accessible from outside the class to the
                     tokens.push_back(Token{TypeOfToken::exit, buffer});
                 } else if (buffer == "set") {
                     tokens.push_back(Token{TypeOfToken::set, buffer});
+                } else if (buffer == "iff") {
+                    tokens.push_back(Token{TypeOfToken::iff_kw, buffer});
                 } else {
                     tokens.push_back(Token{TypeOfToken::identifier, buffer});
                 }
@@ -92,12 +101,44 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == ')') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::close_paren});
+            } else if (c == '<') {
+                consume();
+
+                if (peek() && *peek() == '=') {
+                    consume();
+                    tokens.push_back({TypeOfToken::less_or_equal, "<="});
+                } else {
+                    tokens.push_back({TypeOfToken::less, "<"});
+                }
+            } else if (c == '>') {
+                consume();
+
+                if (peek() && *peek() == '=') {
+                    consume();
+                    tokens.push_back({TypeOfToken::great_or_equal, ">="});
+                } else {
+                    tokens.push_back({TypeOfToken::greater, ">"});
+                }
             } else if (c == ';') {
                 consume(); // move past ';'
                 tokens.push_back(Token{TypeOfToken::semi, ";"});
             } else if (c == '=') {
                 consume();
-                tokens.push_back(Token{TypeOfToken::equals, "="});
+
+                if (peek() && *peek() == '=') {
+                    consume();
+                    tokens.push_back({TypeOfToken::condition_equal, "=="});
+                } else {
+                    tokens.push_back({TypeOfToken::equals, "="});
+                }
+            } else if (c == '!') {
+                consume();
+
+                if (!peek() || *peek() != '=')
+                    throw std::runtime_error("Expected '=' after '!'");
+
+                consume();
+                tokens.push_back({TypeOfToken::bang_equal, "!="});
             } else if (c == '+') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::plus, "+"});

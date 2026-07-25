@@ -27,6 +27,7 @@ struct BinaryExpr {
     NodeExpr *right;
 };
 
+
 struct NodeExpr {
     std::variant<NodeExprIntLit, NodeExprIdentifier, BinaryExpr *> expr;
 };
@@ -42,13 +43,27 @@ struct NodeStmntLet {
 };
 
 struct NodeScope;
+struct NodeStmntIf;
 
 struct NodeStmnt {
-    std::variant<NodeStmntExit, NodeStmntLet, NodeScope *> stmnt;
+    std::variant<NodeStmntExit, NodeStmntIf *, NodeStmntLet, NodeScope *> stmnt;
 };
 
 struct NodeScope {
     std::vector<NodeStmnt *> statements;
+};
+
+struct NodeCondition;
+
+struct NodeStmntIf {
+    NodeCondition *condition;
+    NodeScope *scope;
+};
+
+struct NodeCondition {
+    NodeExpr *left;
+    std::string op;
+    NodeExpr *right;
 };
 
 struct NodeProgram {
@@ -125,7 +140,7 @@ public:
         return left;
     }
 
-    NodeExpr *parse_term() {
+    [[nodiscard]] NodeExpr *parse_term() {
         NodeExpr *left = parse_primary();
 
 
@@ -242,21 +257,57 @@ public:
         return nullptr;
     }
 
+    [[nodiscard]] NodeCondition *parse_condition() {
+        NodeExpr *left = parse_expr();
+
+        if (!left)
+            throw std::runtime_error("Expected Expression.");
+
+        if (!peek())
+            throw std::runtime_error("Expected comparison operator");
+
+        TypeOfToken type = peek()->type;
+
+        if (type != TypeOfToken::condition_equal &&
+            type != TypeOfToken::bang_equal &&
+            type != TypeOfToken::less &&
+            type != TypeOfToken::less_or_equal &&
+            type != TypeOfToken::greater &&
+            type != TypeOfToken::great_or_equal) {
+            throw std::runtime_error("Expected comparison operator");
+        }
+
+        Token op = consume();
+
+        NodeExpr* right = parse_expr();
+
+        if (!right)
+            throw std::runtime_error("Expected expression");
+
+        NodeCondition* cond = m_arena.alloc<NodeCondition>();
+
+        if (!cond)
+            throw std::bad_alloc{};
+
+        return new(cond) NodeCondition{
+            left,
+            op.value.value(),
+            right
+        };
+    }
 
     [[nodiscard]] NodeStmnt *parse_stmt() {
-
-        if (peek() && peek()->type == TypeOfToken::open_scope)
-        {
+        if (peek() && peek()->type == TypeOfToken::open_scope) {
             NodeScope parsed = parse_scope();
 
-            NodeScope* scope = m_arena.alloc<NodeScope>();
+            NodeScope *scope = m_arena.alloc<NodeScope>();
 
             if (!scope)
                 throw std::bad_alloc{};
 
             new(scope) NodeScope(std::move(parsed));
 
-            NodeStmnt* stmt = m_arena.alloc<NodeStmnt>();
+            NodeStmnt *stmt = m_arena.alloc<NodeStmnt>();
 
             if (!stmt)
                 throw std::bad_alloc{};
@@ -265,6 +316,10 @@ public:
         }
         // Parse:
         // set x = expression;
+
+        if (peek() && peek()->type == TypeOfToken::iff_kw) {
+            //inserting if statement here.
+        }
 
         if (peek() && peek()->type == TypeOfToken::set) {
             consume(); // eat "set"

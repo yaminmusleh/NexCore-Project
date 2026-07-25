@@ -1,2 +1,6 @@
-set a = 100 / 5 * 2 + 10;
-exit(a);
+iff (a == b) {}
+iff (a != b) {}
+iff (a < b) {}
+iff (a <= b) {}
+iff (a > b) {}
+iff (a >= b) {}
