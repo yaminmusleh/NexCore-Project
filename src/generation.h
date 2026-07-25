@@ -20,7 +20,7 @@ public:
     [[nodiscard]] std::string generate() {
         m_scopes.clear();
         m_scopes.emplace_back();
-
+        m_labelCount = 0;
         m_variableCount = 0;
 
 
@@ -168,48 +168,81 @@ private:
                 // Remember where this variable lives.
                 m_scopes.back()[name] =
                         Var{m_variableCount * 8};
-            }
+            } else if constexpr (std::is_same_v<T, NodeStmntIf *>) {
+                std::string falseLabel = ".L" + std::to_string(m_labelCount++);
 
+                generate_condition(stmt->condition, buffer, falseLabel);
 
-            // A scope creates a new variable area.
-            //
-            // Example:
-            //
-            // {
-            //      set x = 10;
-            // }
-            //
-            // Variables inside the scope should not
-            // be visible outside.
-            else if constexpr (std::is_same_v<T, NodeScope *>) {
-                m_scopes.emplace_back();
+                generate_scope(stmt->scope, buffer, has_exit);
 
-
-                for (auto child: stmt->statements) {
-                    if (has_exit)
-                        break;
-
-
-                    generate_statement(child, buffer, has_exit);
-                }
-
-
-                m_scopes.pop_back();
+                buffer += falseLabel + ":\n";
+            } else if constexpr (std::is_same_v<T, NodeScope *>) {
+                generate_scope(stmt, buffer, has_exit);
             }
         }, statement->stmnt);
     }
 
 
-    // Generates expressions.
-    //
-    // Supported:
-    //
-    // 10
-    // x
-    // a + b
-    // a * b
-    // a / b
-    //
+    void generate_scope(NodeScope *scope,
+                        std::string &buffer,
+                        bool &has_exit) {
+        size_t oldVariableCount = m_variableCount;
+
+        m_scopes.emplace_back();
+
+
+        for (auto child: scope->statements) {
+            if (has_exit)
+                break;
+
+            generate_statement(child, buffer, has_exit);
+        }
+
+
+        size_t variablesCreated =
+                m_variableCount - oldVariableCount;
+
+
+        if (variablesCreated > 0) {
+            buffer += "    add rsp, ";
+            buffer += std::to_string(variablesCreated * 8);
+            buffer += "\n";
+
+            m_variableCount = oldVariableCount;
+        }
+
+
+        m_scopes.pop_back();
+    }
+
+    void generate_condition(NodeCondition *condition, std::string &buffer, const std::string &falseLabel) {
+        generate_expr(condition->left, buffer);
+
+        push_temp(buffer, "rbx");
+
+        generate_expr(condition->right, buffer);
+
+        pop_temp(buffer, "rax"); // note: rax: left expression, rbx: right expr
+
+        buffer += "    cmp rax, rbx\n"; // compare in assembly
+
+
+        if (condition->op == "==")
+            buffer += "    jne " + falseLabel + "\n"; // if (a == b) → jump away when a != b (jne)
+        else if (condition->op == "!=")
+            buffer += "    je " + falseLabel + "\n"; // if (a != b) → jump away when a == b (je)
+        else if (condition->op == "<")
+            buffer += "    jge " + falseLabel + "\n"; // if (a < b) → jump away when a >= b (jge)
+        else if (condition->op == "<=")
+            buffer += "    jg " + falseLabel + "\n";
+        else if (condition->op == ">")
+            buffer += "    jle " + falseLabel + "\n";
+        else if (condition->op == ">=")
+            buffer += "    jl " + falseLabel + "\n";
+        else
+            throw std::runtime_error("Unknown comparison operator");
+    }
+
     void generate_expr(NodeExpr *expr,
                        std::string &buffer) {
         std::visit([&](auto &&node) {
@@ -337,4 +370,5 @@ private:
 
     // Counts how many variables exist.
     size_t m_variableCount = 0;
+    size_t m_labelCount = 0;
 };

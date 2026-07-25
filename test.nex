@@ -1,6 +1,15 @@
-iff (a == b) {}
-iff (a != b) {}
-iff (a < b) {}
-iff (a <= b) {}
-iff (a > b) {}
-iff (a >= b) {}
+set x = 10;
+
+set y = 5;
+
+iff (x > y) {
+    set z = x * y;
+
+    iff (z == 50) {
+        set a = z + 25;
+
+        iff (a >= 75) {
+            exit(a);
+        }
+    }
+}
