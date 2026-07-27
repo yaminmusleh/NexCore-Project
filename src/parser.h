@@ -24,7 +24,7 @@ struct NodeExpr;
 struct BinaryExpr {
     NodeExpr *left;
     std::string op;
-    NodeExpr *right;
+    NodeExpr *right = nullptr;
 };
 
 
@@ -62,8 +62,8 @@ struct NodeStmntIf {
 
 struct NodeCondition {
     NodeExpr *left;
-    std::string op;
-    NodeExpr *right;
+    std::optional<std::string> op;
+    NodeExpr *right = nullptr;
 };
 
 struct NodeProgram {
@@ -258,13 +258,24 @@ public:
     }
 
     [[nodiscard]] NodeCondition *parse_condition() {
-        NodeExpr *left = parse_expr();
+        NodeCondition* cond = m_arena.alloc<NodeCondition>();
+
+        if (!cond)
+            throw std::bad_alloc{};
+
+        NodeExpr* left = parse_expr();
 
         if (!left)
-            throw std::runtime_error("Expected Expression.");
+            throw std::runtime_error("Expected expression");
 
         if (!peek())
-            throw std::runtime_error("Expected comparison operator");
+        {
+            return new(cond) NodeCondition{
+                left,
+                std::nullopt,
+                nullptr
+            };
+        }
 
         TypeOfToken type = peek()->type;
 
@@ -274,7 +285,11 @@ public:
             type != TypeOfToken::less_or_equal &&
             type != TypeOfToken::greater &&
             type != TypeOfToken::great_or_equal) {
-            throw std::runtime_error("Expected comparison operator");
+            return new(cond) NodeCondition{
+                left,
+                std::nullopt,
+                nullptr
+            };
         }
 
         Token op = consume();
@@ -284,16 +299,12 @@ public:
         if (!right)
             throw std::runtime_error("Expected expression");
 
-        NodeCondition *cond = m_arena.alloc<NodeCondition>();
-
-        if (!cond)
-            throw std::bad_alloc{};
-
         return new(cond) NodeCondition{
             left,
             op.value.value(),
             right
         };
+        
     }
 
     [[nodiscard]] NodeStmnt *parse_stmt() {

@@ -218,26 +218,33 @@ private:
     void generate_condition(NodeCondition *condition, std::string &buffer, const std::string &falseLabel) {
         generate_expr(condition->left, buffer);
 
+        if (!condition->op.has_value()) {
+            buffer += "    cmp rbx, 0\n";
+            buffer += "    je " + falseLabel + "\n";
+            return;
+        }
+
         push_temp(buffer, "rbx");
 
-        generate_expr(condition->right, buffer);
-
+        if (condition->op.has_value()) {
+            generate_expr(condition->right, buffer);
+        }
         pop_temp(buffer, "rax"); // note: rax: left expression, rbx: right expr
 
         buffer += "    cmp rax, rbx\n"; // compare in assembly
 
 
-        if (condition->op == "==")
+        if (*condition->op == "==")
             buffer += "    jne " + falseLabel + "\n"; // if (a == b) → jump away when a != b (jne)
-        else if (condition->op == "!=")
+        else if (*condition->op == "!=")
             buffer += "    je " + falseLabel + "\n"; // if (a != b) → jump away when a == b (je)
-        else if (condition->op == "<")
+        else if (*condition->op == "<")
             buffer += "    jge " + falseLabel + "\n"; // if (a < b) → jump away when a >= b (jge)
-        else if (condition->op == "<=")
+        else if (*condition->op == "<=")
             buffer += "    jg " + falseLabel + "\n";
-        else if (condition->op == ">")
+        else if (*condition->op == ">")
             buffer += "    jle " + falseLabel + "\n";
-        else if (condition->op == ">=")
+        else if (*condition->op == ">=")
             buffer += "    jl " + falseLabel + "\n";
         else
             throw std::runtime_error("Unknown comparison operator");
