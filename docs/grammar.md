@@ -6,9 +6,8 @@ $$
 [\text{Stmnt}] &\to
 \begin{cases}
 \text{exit}([\text{Expr}]); & \\
-\text{let}\ \text{ident} = [\text{Expr}]; & \\
-\text{ident} = [\text{Expr}]; & \\
-\text{if}([\text{Expr}])[\text{Scope}][\text{IfPred}] & \\
+\text{set}\ \text{ident} = [\text{Expr}]; & \\
+\text{iff}([\text{Condition}])[\text{Scope}][\text{IfPred}] & \\
 [\text{Scope}] &
 \end{cases}
 \\[1em]
@@ -32,6 +31,24 @@ $$
 \end{cases}
 \\[1em]
 
+[\text{Condition}] &\to
+\begin{cases}
+[\text{Expr}] & \\
+[\text{Expr}][\text{CompOp}][\text{Expr}] &
+\end{cases}
+\\[1em]
+
+[\text{CompOp}] &\to
+\begin{cases}
+== & \\
+!= & \\
+< & \\
+<= & \\
+> & \\
+>= &
+\end{cases}
+\\[1em]
+
 [\text{BinExpr}] &\to
 \begin{cases}
 [\text{Expr}] * [\text{Expr}] & \text{prec}=1 \\
@@ -42,6 +59,16 @@ $$
 \\[1em]
 
 [\text{Term}] &\to
+[\text{Primary}]
+\left\{
+\begin{array}{l}
+*[\text{Primary}] \\
+/[\text{Primary}]
+\end{array}
+\right\}^*
+\\[1em]
+
+[\text{Primary}] &\to
 \begin{cases}
 \text{int\_lit} & \\
 \text{ident} & \\
