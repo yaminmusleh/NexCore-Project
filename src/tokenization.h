@@ -3,8 +3,6 @@
 #include <vector>
 #include <string>
 #include <optional>
-#include <fstream>
-#include <sstream>
 #include <stdexcept>
 #include <cctype>
 using namespace std;
@@ -125,7 +123,7 @@ public: //Everything below this line is accessible from outside the class to the
                     consume(); //second ;
                     while (peek() && *peek() != '\n') {
                         consume();
-                        //we dont push tokens here since the comment have no meaning.
+                        //we don't push tokens here since the comment have no meaning.
                     };
                 } else {
                     tokens.push_back(Token{TypeOfToken::semi, ";"});
