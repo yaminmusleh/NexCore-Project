@@ -121,7 +121,15 @@ public: //Everything below this line is accessible from outside the class to the
                 }
             } else if (c == ';') {
                 consume(); // move past ';'
-                tokens.push_back(Token{TypeOfToken::semi, ";"});
+                if (peek() && *peek() == ';') {
+                    consume(); //second ;
+                    while (peek() && *peek() != '\n') {
+                        consume();
+                        //we dont push tokens here since the comment have no meaning.
+                    };
+                } else {
+                    tokens.push_back(Token{TypeOfToken::semi, ";"});
+                }
             } else if (c == '=') {
                 consume();
 
