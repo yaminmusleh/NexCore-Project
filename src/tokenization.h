@@ -8,7 +8,6 @@
 #include <utility>
 
 
-
 enum class TypeOfToken {
     exit,
     int_lit,
@@ -30,7 +29,8 @@ enum class TypeOfToken {
     great_or_equal,
     less_or_equal,
     bang_equal, // !=
-    condition_equal // ==
+    condition_equal, // ==
+    otherwise_kw // custom else keyword
 };
 
 struct Token {
@@ -83,13 +83,17 @@ public: //Everything below this line is accessible from outside the class to the
                     tokens.push_back(Token{TypeOfToken::set, buffer});
                 } else if (buffer == "iff") {
                     tokens.push_back(Token{TypeOfToken::iff_kw, buffer});
-                } else {
+                }
+                else if (buffer == "otherwise") {
+                    tokens.push_back(Token{TypeOfToken::otherwise_kw, buffer});
+                }
+                else {
                     tokens.push_back(Token{TypeOfToken::identifier, buffer});
                 }
             } else if (std::isdigit(c)) {
                 buffer.clear();
 
-                while (peek() && isdigit(*peek())) {
+                while (peek() && std::isdigit(*peek())) {
                     buffer.push_back(*consume());
                 }
 

@@ -58,6 +58,7 @@ struct NodeCondition;
 struct NodeStmntIf {
     NodeCondition *condition;
     NodeScope *scope;
+    NodeScope *else_scope = nullptr;
 };
 
 struct NodeCondition {
@@ -131,6 +132,8 @@ public:
 
 
             NodeExpr *expr = m_arena.alloc<NodeExpr>();
+            if (!expr)
+                throw std::bad_alloc{};
 
             left = new(expr) NodeExpr{
                 binary
@@ -258,18 +261,17 @@ public:
     }
 
     [[nodiscard]] NodeCondition *parse_condition() {
-        NodeCondition* cond = m_arena.alloc<NodeCondition>();
+        NodeCondition *cond = m_arena.alloc<NodeCondition>();
 
         if (!cond)
             throw std::bad_alloc{};
 
-        NodeExpr* left = parse_expr();
+        NodeExpr *left = parse_expr();
 
         if (!left)
             throw std::runtime_error("Expected expression");
 
-        if (!peek())
-        {
+        if (!peek()) {
             return new(cond) NodeCondition{
                 left,
                 std::nullopt,
@@ -304,7 +306,6 @@ public:
             op.value.value(),
             right
         };
-        
     }
 
     [[nodiscard]] NodeStmnt *parse_stmt() {
@@ -345,23 +346,42 @@ public:
             NodeScope parsed = parse_scope(); // this is scope iff(condition) {   }
 
             NodeScope *scope = m_arena.alloc<NodeScope>();
-
             if (!scope)
                 throw std::bad_alloc{};
 
             new(scope) NodeScope(std::move(parsed));
 
+            NodeScope *else_scope = nullptr;
+
+            if (peek() && peek()->type == TypeOfToken::otherwise_kw) {
+                consume();
+
+                NodeScope parsed_else = parse_scope();
+
+                else_scope = m_arena.alloc<NodeScope>();
+
+                if (!else_scope)
+                    throw std::bad_alloc{};
+
+                new(else_scope) NodeScope(std::move(parsed_else));
+            }
+
             NodeStmntIf *iff_stmnt = m_arena.alloc<NodeStmntIf>();
 
             if (!iff_stmnt)
                 throw std::bad_alloc{};
-            new(iff_stmnt) NodeStmntIf{condition, scope};
+            new(iff_stmnt) NodeStmntIf{
+                condition,
+                scope,
+                else_scope
+            };
 
             NodeStmnt *stmnt = m_arena.alloc<NodeStmnt>();
             if (!stmnt)
                 throw std::bad_alloc{};
             return new(stmnt) NodeStmnt{iff_stmnt};
         }
+
 
         if (peek() && peek()->type == TypeOfToken::set) {
             consume(); // eat "set"
