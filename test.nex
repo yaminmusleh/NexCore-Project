@@ -1,3 +1,46 @@
-;;
-;;
-set x = 1;
+set a = 10;
+set b = 5;
+
+set sum = a + b;
+set diff = a - b;
+set product = a * b;
+set division = a / b;
+
+
+iff (sum == 15) {
+    set result = 100;
+
+    iff (result > 50) {
+        set inside = 200;
+        exit(inside);
+    } otherwise {
+        exit(1);
+    }
+} otherwise {
+    exit(2);
+}
+
+
+set c = 20;
+
+iff (c != 30) {
+    set x = 300;
+} otherwise {
+    set x = 400;
+}
+
+
+{
+    set a = 999;
+
+    iff (a >= 999) {
+        set hidden = 1234;
+    }
+}
+
+
+iff (b < 10) {
+    exit(sum);
+} otherwise {
+    exit(product);
+}

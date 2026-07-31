@@ -49,13 +49,13 @@ public:
         // If the program never called exit(),
         // return 0 by default.
         if (!has_exit) {
-            buffer += "    mov rdi, 0\n";
-        }
-
-
-        buffer +=
+            buffer +=
+                "    mov rdi, 0\n"
                 "    mov rax, 60\n"
                 "    syscall\n";
+            return buffer;
+        }
+
 
 
         return buffer;
@@ -124,12 +124,12 @@ private:
             if constexpr (std::is_same_v<T, NodeStmntExit>) {
                 has_exit = true;
 
-
                 generate_expr(stmt.expr, buffer);
 
-
-                // Linux exit syscall expects the return value in rdi.
-                buffer += "    mov rdi, rbx\n";
+                buffer +=
+                        "    mov rdi, rbx\n"
+                        "    mov rax, 60\n"
+                        "    syscall\n";
             }
 
 
@@ -170,12 +170,36 @@ private:
                         Var{m_variableCount * 8};
             } else if constexpr (std::is_same_v<T, NodeStmntIf *>) {
                 std::string falseLabel = ".L" + std::to_string(m_labelCount++);
+                std::string endLabel = ".L" + std::to_string(m_labelCount++);
+
 
                 generate_condition(stmt->condition, buffer, falseLabel);
 
-                generate_scope(stmt->scope, buffer, has_exit);
+
+                bool if_exit = false;
+                generate_scope(stmt->scope, buffer, if_exit);
+
+
+                if (!if_exit) {
+                    buffer += "    jmp " + endLabel + "\n";
+                }
+
 
                 buffer += falseLabel + ":\n";
+
+
+                bool else_exit = false;
+
+                if (stmt->else_scope) {
+                    generate_scope(stmt->else_scope, buffer, else_exit);
+                }
+
+
+                buffer += endLabel + ":\n";
+
+
+                // The whole if statement exits only if BOTH branches exit.
+                has_exit = if_exit && else_exit;
             } else if constexpr (std::is_same_v<T, NodeScope *>) {
                 generate_scope(stmt, buffer, has_exit);
             }
@@ -192,23 +216,25 @@ private:
 
 
         for (auto child: scope->statements) {
+            generate_statement(child, buffer, has_exit);
+
             if (has_exit)
                 break;
-
-            generate_statement(child, buffer, has_exit);
         }
 
 
-        size_t variablesCreated =
-                m_variableCount - oldVariableCount;
+        if (!has_exit) {
+            size_t variablesCreated =
+                    m_variableCount - oldVariableCount;
 
 
-        if (variablesCreated > 0) {
-            buffer += "    add rsp, ";
-            buffer += std::to_string(variablesCreated * 8);
-            buffer += "\n";
+            if (variablesCreated > 0) {
+                buffer += "    add rsp, ";
+                buffer += std::to_string(variablesCreated * 8);
+                buffer += "\n";
 
-            m_variableCount = oldVariableCount;
+                m_variableCount = oldVariableCount;
+            }
         }
 
 
