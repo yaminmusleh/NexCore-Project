@@ -545,8 +545,8 @@ private:
     }
 
 
-    std::vector<Token> p_tokens;
-    std::size_t m_index = 0;
+    std::vector<Token> p_tokens; // the list of tokens the parser is reading.
+    std::size_t m_index = 0; // the current position of p_tokens.
 
     // The arena is owned outside the parser.
     // This keeps AST nodes alive after parsing finishes.

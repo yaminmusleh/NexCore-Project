@@ -1,11 +1,48 @@
-set x = 10;
+set a = 10;
+set b = 5;
+set c = (a + b) * 2 - 10 / 2;
 
-iff(x == 5) {
-    exit(10);
+iff(c == 25) {
+
+    iff(a > b) {
+
+        set x = a * b + 50;
+
+        iff(x == 100) {
+            exit(100);
+        }
+        otherwise iff(x == 95) {
+            exit(95);
+        }
+        otherwise {
+            exit(90);
+        }
+
+    }
+    otherwise {
+        exit(80);
+    }
+
 }
-otherwise iff(x == 10) {
-    exit(20);
+otherwise iff(c == 25 - 1) {
+
+    exit(70);
+
+}
+otherwise iff(c < 10) {
+
+    exit(60);
+
 }
 otherwise {
-    exit(30);
+
+    iff(a == 10) {
+        exit(50);
+    }
+    otherwise {
+        exit(40);
+    }
+
 }
+
+exit(111);
