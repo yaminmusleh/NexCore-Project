@@ -1,0 +1,11 @@
+set x = 10;
+
+iff(x == 5) {
+    exit(10);
+}
+otherwise iff(x == 10) {
+    exit(20);
+}
+otherwise {
+    exit(30);
+}

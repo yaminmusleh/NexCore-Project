@@ -50,12 +50,11 @@ public:
         // return 0 by default.
         if (!has_exit) {
             buffer +=
-                "    mov rdi, 0\n"
-                "    mov rax, 60\n"
-                "    syscall\n";
+                    "    mov rdi, 0\n"
+                    "    mov rax, 60\n"
+                    "    syscall\n";
             return buffer;
         }
-
 
 
         return buffer;
@@ -102,6 +101,36 @@ private:
         size_t offset;
     };
 
+    void generate_if(NodeStmntIf *stmt,
+                     std::string &buffer,
+                     bool &has_exit) {
+        std::string falseLabel = ".L" + std::to_string(m_labelCount++);
+        std::string endLabel = ".L" + std::to_string(m_labelCount++);
+
+        generate_condition(stmt->condition, buffer, falseLabel);
+
+        bool if_exit = false;
+        generate_scope(stmt->scope, buffer, if_exit);
+
+        if (!if_exit)
+            buffer += "    jmp " + endLabel + "\n";
+
+        buffer += falseLabel + ":\n";
+
+        bool else_exit = false;
+
+        if (stmt->else_if) {
+            generate_if(stmt->else_if, buffer, else_exit);
+        }
+        else if (stmt->else_scope) {
+            generate_scope(stmt->else_scope, buffer, else_exit);
+        }
+
+        buffer += endLabel + ":\n";
+
+        has_exit = if_exit && else_exit;
+    }
+
 
     // Generates a single statement.
     //
@@ -117,7 +146,7 @@ private:
                             std::string &buffer,
                             bool &has_exit) {
         std::visit([&](auto &&stmt) {
-            using T = std::decay_t<decltype(stmt)>;
+            using T = std::decay_t<decltype(stmt)>; // stmt accepts all types of data.
 
 
             // exit(expression);
@@ -169,37 +198,7 @@ private:
                 m_scopes.back()[name] =
                         Var{m_variableCount * 8};
             } else if constexpr (std::is_same_v<T, NodeStmntIf *>) {
-                std::string falseLabel = ".L" + std::to_string(m_labelCount++);
-                std::string endLabel = ".L" + std::to_string(m_labelCount++);
-
-
-                generate_condition(stmt->condition, buffer, falseLabel);
-
-
-                bool if_exit = false;
-                generate_scope(stmt->scope, buffer, if_exit);
-
-
-                if (!if_exit) {
-                    buffer += "    jmp " + endLabel + "\n";
-                }
-
-
-                buffer += falseLabel + ":\n";
-
-
-                bool else_exit = false;
-
-                if (stmt->else_scope) {
-                    generate_scope(stmt->else_scope, buffer, else_exit);
-                }
-
-
-                buffer += endLabel + ":\n";
-
-
-                // The whole if statement exits only if BOTH branches exit.
-                has_exit = if_exit && else_exit;
+                generate_if(stmt, buffer, has_exit);
             } else if constexpr (std::is_same_v<T, NodeScope *>) {
                 generate_scope(stmt, buffer, has_exit);
             }
@@ -252,9 +251,8 @@ private:
 
         push_temp(buffer, "rbx");
 
-        if (condition->op.has_value()) {
-            generate_expr(condition->right, buffer);
-        }
+        generate_expr(condition->right, buffer);
+
         pop_temp(buffer, "rax"); // note: rax: left expression, rbx: right expr
 
         buffer += "    cmp rax, rbx\n"; // compare in assembly

@@ -59,6 +59,7 @@ struct NodeStmntIf {
     NodeCondition *condition;
     NodeScope *scope;
     NodeScope *else_scope = nullptr;
+    NodeStmntIf *else_if = nullptr;
 };
 
 struct NodeCondition {
@@ -352,18 +353,27 @@ public:
             new(scope) NodeScope(std::move(parsed));
 
             NodeScope *else_scope = nullptr;
+            NodeStmntIf *else_if = nullptr;
 
             if (peek() && peek()->type == TypeOfToken::otherwise_kw) {
                 consume();
 
-                NodeScope parsed_else = parse_scope();
+               if (peek()&&peek()->type ==  TypeOfToken::iff_kw) {
+                   NodeStmnt *stmt = parse_stmt();
+                   auto *ifStmt = std::get<NodeStmntIf*>(stmt->stmnt);
 
-                else_scope = m_arena.alloc<NodeScope>();
+                   else_if = ifStmt;
+               }
+                else {
+                    NodeScope parsed_else = parse_scope();
 
-                if (!else_scope)
-                    throw std::bad_alloc{};
+                    else_scope = m_arena.alloc<NodeScope>();
 
-                new(else_scope) NodeScope(std::move(parsed_else));
+                    if (!else_scope)
+                        throw std::bad_alloc{};
+
+                    new(else_scope) NodeScope(std::move(parsed_else));
+                }
             }
 
             NodeStmntIf *iff_stmnt = m_arena.alloc<NodeStmntIf>();
@@ -373,7 +383,8 @@ public:
             new(iff_stmnt) NodeStmntIf{
                 condition,
                 scope,
-                else_scope
+                else_scope,
+                else_if
             };
 
             NodeStmnt *stmnt = m_arena.alloc<NodeStmnt>();
