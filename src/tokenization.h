@@ -30,7 +30,10 @@ enum class TypeOfToken {
     less_or_equal,
     bang_equal, // !=
     condition_equal, // ==
-    otherwise_kw // custom else keyword
+    otherwise_kw, // custom else keyword
+    logical_and,
+    logical_or,
+    logical_not,
 };
 
 struct Token {
@@ -83,11 +86,9 @@ public: //Everything below this line is accessible from outside the class to the
                     tokens.push_back(Token{TypeOfToken::set, buffer});
                 } else if (buffer == "iff") {
                     tokens.push_back(Token{TypeOfToken::iff_kw, buffer});
-                }
-                else if (buffer == "otherwise") {
+                } else if (buffer == "otherwise") {
                     tokens.push_back(Token{TypeOfToken::otherwise_kw, buffer});
-                }
-                else {
+                } else {
                     tokens.push_back(Token{TypeOfToken::identifier, buffer});
                 }
             } else if (std::isdigit(c)) {
@@ -160,11 +161,12 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '!') {
                 consume();
 
-                if (!peek() || *peek() != '=')
-                    throw std::runtime_error("Expected '=' after '!'");
-
-                consume();
-                tokens.push_back({TypeOfToken::bang_equal, "!="});
+                if (peek() || *peek() != '=') {
+                    consume();
+                    tokens.push_back({TypeOfToken::bang_equal, "!="});
+                } else {
+                    tokens.push_back(Token{TypeOfToken::logical_not, "!"});
+                }
             } else if (c == '+') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::plus, "+"});
@@ -177,6 +179,12 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '/') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::slash, "/"});
+            } else if (c == '&') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::logical_and, "&"});
+            } else if (c == '|') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::logical_or, "|"});
             } else if (c == '{') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::open_scope, "{"});

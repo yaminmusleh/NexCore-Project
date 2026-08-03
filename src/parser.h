@@ -144,6 +144,13 @@ public:
         return left;
     }
 
+    [[nodiscardd]] NodeExpr* parse_logicalAnd() {
+
+    }
+    [[nodiscardd]] NodeExpr* parse_logicalOr() {
+
+    }
+
     [[nodiscard]] NodeExpr *parse_term() {
         NodeExpr *left = parse_primary();
 
