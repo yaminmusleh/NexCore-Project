@@ -144,10 +144,46 @@ public:
         return left;
     }
 
-    [[nodiscardd]] NodeExpr* parse_logicalAnd() {
-        //here is the AND & parsing.
+    [[nodiscard]] NodeExpr* parse_logicalAnd() {
+        NodeExpr *left = parse_term();
+
+        while (peek()) {
+            TypeOfToken type = peek()->type;
+
+            if (type != TypeOfToken::logical_and)
+                break;
+
+
+            Token op = consume();
+
+            NodeExpr *right = parse_term();
+
+            if (!right)
+                throw std::runtime_error("Expected expression");
+            BinaryExpr *oper = m_arena.alloc<BinaryExpr>();
+
+            if (!oper)
+                throw std::bad_alloc{};
+
+            new(oper) BinaryExpr{
+                left,
+                op.value.value(),
+                right
+            };
+            NodeExpr *expr = m_arena.alloc<NodeExpr>();
+            if (!expr)
+                throw std::bad_alloc{};
+
+            left = new(expr) NodeExpr{
+                oper
+            };
+        }
+
+        return left;
+
+
     }
-    [[nodiscardd]] NodeExpr* parse_logicalOr() {
+    [[nodiscard]] NodeExpr* parse_logicalOr() {
         //here is the OR | parsing.
     }
 
