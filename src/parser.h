@@ -53,20 +53,13 @@ struct NodeScope {
     std::vector<NodeStmnt *> statements;
 };
 
-struct NodeCondition;
-
 struct NodeStmntIf {
-    NodeCondition *condition;
+    NodeExpr *condition;
     NodeScope *scope;
     NodeScope *else_scope = nullptr;
     NodeStmntIf *else_if = nullptr;
 };
 
-struct NodeCondition {
-    NodeExpr *left;
-    std::optional<std::string> op;
-    NodeExpr *right = nullptr;
-};
 
 struct NodeProgram {
     std::vector<NodeStmnt *> statements;
@@ -101,7 +94,7 @@ public:
     }
 
 
-    [[nodiscard]] NodeExpr *parse_expr() {
+    [[nodiscard]] NodeExpr *parse_additive() {
         NodeExpr *left = parse_term();
 
         while (peek()) {
@@ -144,49 +137,8 @@ public:
         return left;
     }
 
-    [[nodiscard]] NodeExpr* parse_logicalAnd() {
-        NodeExpr *left = parse_expr();
 
-        while (peek()) {
-            TypeOfToken type = peek()->type;
-
-            if (type != TypeOfToken::logical_and)
-                break;
-
-
-            Token op = consume();
-
-            NodeExpr *right = parse_expr();
-
-            if (!right)
-                throw std::runtime_error("Expected expression");
-
-            BinaryExpr *oper = m_arena.alloc<BinaryExpr>();
-
-            if (!oper)
-                throw std::bad_alloc{};
-
-            new(oper) BinaryExpr{
-                left,
-                op.value.value(),
-                right
-            };
-            NodeExpr *expr = m_arena.alloc<NodeExpr>();
-            if (!expr)
-                throw std::bad_alloc{};
-
-            left = new(expr) NodeExpr{
-                oper
-            };
-        }
-
-        return left;
-
-
-    }
-
-
-    [[nodiscard]] NodeExpr* parse_logicalOr() {
+    [[nodiscard]] NodeExpr *parse_logicalOr() {
         NodeExpr *left = parse_logicalAnd();
 
         while (peek()) {
@@ -224,6 +176,99 @@ public:
         return left;
     }
 
+
+    [[nodiscard]] NodeExpr *parse_logicalAnd() {
+        NodeExpr *left = parse_comparison();
+
+        while (peek()) {
+            TypeOfToken type = peek()->type;
+
+            if (type != TypeOfToken::logical_and)
+                break;
+
+
+            Token op = consume();
+
+            NodeExpr *right = parse_comparison();
+
+            if (!right)
+                throw std::runtime_error("Expected expression");
+
+            BinaryExpr *oper = m_arena.alloc<BinaryExpr>();
+
+            if (!oper)
+                throw std::bad_alloc{};
+
+            new(oper) BinaryExpr{
+                left,
+                op.value.value(),
+                right
+            };
+            NodeExpr *expr = m_arena.alloc<NodeExpr>();
+            if (!expr)
+                throw std::bad_alloc{};
+
+            left = new(expr) NodeExpr{
+                oper
+            };
+        }
+
+        return left;
+    }
+
+
+    [[nodiscard]] NodeExpr *parse_comparison() {
+        NodeExpr *left = parse_additive();
+
+        if (!peek())
+            return left;
+
+
+        TypeOfToken type = peek()->type;
+
+
+        if (type != TypeOfToken::condition_equal &&
+            type != TypeOfToken::bang_equal &&
+            type != TypeOfToken::less &&
+            type != TypeOfToken::less_or_equal &&
+            type != TypeOfToken::greater &&
+            type != TypeOfToken::great_or_equal) {
+            return left;
+        }
+
+
+        Token op = consume();
+
+
+        NodeExpr *right = parse_additive();
+
+        if (!right)
+            throw std::runtime_error("Expected expression");
+
+
+        BinaryExpr *binary = m_arena.alloc<BinaryExpr>();
+
+        if (!binary)
+            throw std::bad_alloc{};
+
+
+        new(binary) BinaryExpr{
+            left,
+            op.value.value(),
+            right
+        };
+
+
+        NodeExpr *expr = m_arena.alloc<NodeExpr>();
+
+        if (!expr)
+            throw std::bad_alloc{};
+
+
+        return new(expr) NodeExpr{
+            binary
+        };
+    }
 
 
     [[nodiscard]] NodeExpr *parse_term() {
@@ -318,7 +363,7 @@ public:
         if (peek() && peek()->type == TypeOfToken::open_paren) {
             consume();
 
-            NodeExpr *expr = parse_expr();
+            NodeExpr *expr = parse_logicalOr();
 
             if (!peek() || peek()->type != TypeOfToken::close_paren)
                 throw std::runtime_error("Expected ')'");
@@ -341,54 +386,6 @@ public:
 
 
         return nullptr;
-    }
-
-    [[nodiscard]] NodeCondition *parse_condition() {
-        NodeCondition *cond = m_arena.alloc<NodeCondition>();
-
-        if (!cond)
-            throw std::bad_alloc{};
-
-        NodeExpr *left = parse_expr();
-
-        if (!left)
-            throw std::runtime_error("Expected expression");
-
-        if (!peek()) {
-            return new(cond) NodeCondition{
-                left,
-                std::nullopt,
-                nullptr
-            };
-        }
-
-        TypeOfToken type = peek()->type;
-
-        if (type != TypeOfToken::condition_equal &&
-            type != TypeOfToken::bang_equal &&
-            type != TypeOfToken::less &&
-            type != TypeOfToken::less_or_equal &&
-            type != TypeOfToken::greater &&
-            type != TypeOfToken::great_or_equal) {
-            return new(cond) NodeCondition{
-                left,
-                std::nullopt,
-                nullptr
-            };
-        }
-
-        Token op = consume();
-
-        NodeExpr *right = parse_expr();
-
-        if (!right)
-            throw std::runtime_error("Expected expression");
-
-        return new(cond) NodeCondition{
-            left,
-            op.value.value(),
-            right
-        };
     }
 
     [[nodiscard]] NodeStmnt *parse_stmt() {
@@ -420,7 +417,7 @@ public:
 
             consume();
 
-            NodeCondition *condition = parse_condition(); // parsing a condition (condition...
+            NodeExpr *condition = parse_logicalOr();
             if (!peek() || peek()->type != TypeOfToken::close_paren) // expecting a ")"
                 throw std::runtime_error("Expected ')' after iff");
 
@@ -440,13 +437,12 @@ public:
             if (peek() && peek()->type == TypeOfToken::otherwise_kw) {
                 consume();
 
-               if (peek()&&peek()->type ==  TypeOfToken::iff_kw) {
-                   NodeStmnt *stmt = parse_stmt();
-                   auto *ifStmt = std::get<NodeStmntIf*>(stmt->stmnt);
+                if (peek() && peek()->type == TypeOfToken::iff_kw) {
+                    NodeStmnt *stmt = parse_stmt();
+                    auto *ifStmt = std::get<NodeStmntIf *>(stmt->stmnt);
 
-                   else_if = ifStmt;
-               }
-                else {
+                    else_if = ifStmt;
+                } else {
                     NodeScope parsed_else = parse_scope();
 
                     else_scope = m_arena.alloc<NodeScope>();
@@ -494,7 +490,7 @@ public:
             consume(); // eat '='
 
 
-            NodeExpr *expr = parse_expr();
+            NodeExpr *expr = parse_logicalOr();
 
 
             if (!expr)
@@ -537,7 +533,7 @@ public:
             consume(); // eat '('
 
 
-            NodeExpr *expr = parse_expr();
+            NodeExpr *expr = parse_logicalOr();
 
 
             if (!expr)

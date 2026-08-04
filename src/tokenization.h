@@ -161,10 +161,11 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '!') {
                 consume();
 
-                if (peek() || *peek() != '=') {
+                if (peek() && *peek() == '=') {
                     consume();
                     tokens.push_back({TypeOfToken::bang_equal, "!="});
-                } else {
+                }
+                else {
                     tokens.push_back(Token{TypeOfToken::logical_not, "!"});
                 }
             } else if (c == '+') {

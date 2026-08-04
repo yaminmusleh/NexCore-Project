@@ -1,48 +1,36 @@
-set a = 10;
-set b = 5;
-set c = (a + b) * 2 - 10 / 2;
+set a = 1;
+set b = 2;
+set c = 3;
+set d = 4;
 
-iff(c == 25) {
+iff(a < b & b < c & c < d) {
 
-    iff(a > b) {
+    set x = a + b;
+    set y = x * c;
+    set z = y + d;
 
-        set x = a * b + 50;
+    iff(z == 13 | z == 100) {
 
-        iff(x == 100) {
-            exit(100);
+        iff(z >= 10 & z <= 20) {
+
+            {
+                set hidden = z * 2;
+
+                iff(hidden == 26) {
+                    exit(hidden);
+                } otherwise {
+                    exit(0);
+                }
+            }
+
+        } otherwise {
+            exit(50);
         }
-        otherwise iff(x == 95) {
-            exit(95);
-        }
-        otherwise {
-            exit(90);
-        }
 
+    } otherwise {
+        exit(60);
     }
-    otherwise {
-        exit(80);
-    }
 
-}
-otherwise iff(c == 25 - 1) {
-
+} otherwise {
     exit(70);
-
 }
-otherwise iff(c < 10) {
-
-    exit(60);
-
-}
-otherwise {
-
-    iff(a == 10) {
-        exit(50);
-    }
-    otherwise {
-        exit(40);
-    }
-
-}
-
-exit(111);
