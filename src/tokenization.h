@@ -34,6 +34,7 @@ enum class TypeOfToken {
     logical_and,
     logical_or,
     logical_not,
+    percent,
 };
 
 struct Token {
@@ -164,8 +165,7 @@ public: //Everything below this line is accessible from outside the class to the
                 if (peek() && *peek() == '=') {
                     consume();
                     tokens.push_back({TypeOfToken::bang_equal, "!="});
-                }
-                else {
+                } else {
                     tokens.push_back(Token{TypeOfToken::logical_not, "!"});
                 }
             } else if (c == '+') {
@@ -180,7 +180,12 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '/') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::slash, "/"});
-            } else if (c == '&') {
+            }
+            else if (c == '%') {
+                consume();
+                tokens.push_back(Token{TypeOfToken::percent, "%"});
+            }
+            else if (c == '&') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::logical_and, "&"});
             } else if (c == '|') {

@@ -317,7 +317,8 @@ public:
 
 
             if (type != TypeOfToken::star &&
-                type != TypeOfToken::slash)
+                type != TypeOfToken::slash &&
+                type != TypeOfToken::percent)
                 break;
 
 

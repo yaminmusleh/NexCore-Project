@@ -240,11 +240,11 @@ private:
     }
 
     void generate_condition_branch(NodeExpr *condition,
-                                 std::string &buffer,
-                                 const std::string &trueLabel,
-                                 const std::string &falseLabel) {
-        if (std::holds_alternative<UnaryExpr*>(condition->expr)) {
-            auto unary = std::get<UnaryExpr*>(condition->expr);
+                                   std::string &buffer,
+                                   const std::string &trueLabel,
+                                   const std::string &falseLabel) {
+        if (std::holds_alternative<UnaryExpr *>(condition->expr)) {
+            auto unary = std::get<UnaryExpr *>(condition->expr);
 
             if (unary->op == "!") {
                 generate_condition_branch(
@@ -274,19 +274,19 @@ private:
         // true && true
         if (binary->op == "&") {
             std::string next =
-                ".L" + std::to_string(m_labelCount++);
+                    ".L" + std::to_string(m_labelCount++);
 
             generate_condition_branch(binary->left,
-                                    buffer,
-                                    next,
-                                    falseLabel);
+                                      buffer,
+                                      next,
+                                      falseLabel);
 
             buffer += next + ":\n";
 
             generate_condition_branch(binary->right,
-                                    buffer,
-                                    trueLabel,
-                                    falseLabel);
+                                      buffer,
+                                      trueLabel,
+                                      falseLabel);
 
             return;
         }
@@ -295,19 +295,19 @@ private:
         // true || true
         if (binary->op == "|") {
             std::string next =
-                ".L" + std::to_string(m_labelCount++);
+                    ".L" + std::to_string(m_labelCount++);
 
             generate_condition_branch(binary->left,
-                                    buffer,
-                                    trueLabel,
-                                    next);
+                                      buffer,
+                                      trueLabel,
+                                      next);
 
             buffer += next + ":\n";
 
             generate_condition_branch(binary->right,
-                                    buffer,
-                                    trueLabel,
-                                    falseLabel);
+                                      buffer,
+                                      trueLabel,
+                                      falseLabel);
 
             return;
         }
@@ -328,28 +328,22 @@ private:
         if (binary->op == "==") {
             buffer += "    je " + trueLabel + "\n";
             buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == "!=") {
+        } else if (binary->op == "!=") {
             buffer += "    jne " + trueLabel + "\n";
             buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == "<") {
+        } else if (binary->op == "<") {
             buffer += "    jl " + trueLabel + "\n";
             buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == "<=") {
+        } else if (binary->op == "<=") {
             buffer += "    jle " + trueLabel + "\n";
             buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == ">") {
+        } else if (binary->op == ">") {
             buffer += "    jg " + trueLabel + "\n";
             buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == ">=") {
+        } else if (binary->op == ">=") {
             buffer += "    jge " + trueLabel + "\n";
             buffer += "    jmp " + falseLabel + "\n";
-        }
-        else {
+        } else {
             throw std::runtime_error(
                 "Unknown condition operator: " + binary->op
             );
@@ -357,16 +351,15 @@ private:
     }
 
     void generate_condition(NodeExpr *condition,
-                        std::string &buffer,
-                        const std::string &falseLabel)
-    {
+                            std::string &buffer,
+                            const std::string &falseLabel) {
         std::string trueLabel =
-            ".L" + std::to_string(m_labelCount++);
+                ".L" + std::to_string(m_labelCount++);
 
         generate_condition_branch(condition,
-                                buffer,
-                                trueLabel,
-                                falseLabel);
+                                  buffer,
+                                  trueLabel,
+                                  falseLabel);
 
         buffer += trueLabel + ":\n";
     }
@@ -424,53 +417,51 @@ private:
             //
             // left operator right
             else if constexpr (std::is_same_v<T, BinaryExpr *>) {
-
-     if (node->op == "<" ||
-         node->op == ">" ||
-         node->op == "<=" ||
-         node->op == ">=" ||
-         node->op == "==" ||
-         node->op == "!=" ||
-         node->op == "&" ||
-         node->op == "|") {
-
-         throw std::runtime_error(
-             "Condition used as expression"
-         );
-     }
+                if (node->op == "<" ||
+                    node->op == ">" ||
+                    node->op == "<=" ||
+                    node->op == ">=" ||
+                    node->op == "==" ||
+                    node->op == "!=" ||
+                    node->op == "&" ||
+                    node->op == "|") {
+                    throw std::runtime_error(
+                        "Condition used as expression"
+                    );
+                }
 
 
-     generate_expr(node->left, buffer);
+                generate_expr(node->left, buffer);
 
-     push_temp(buffer, "rbx");
+                push_temp(buffer, "rbx");
 
-     generate_expr(node->right, buffer);
+                generate_expr(node->right, buffer);
 
-     pop_temp(buffer, "rax");
-
-
-     if (node->op == "+") {
-         buffer += "    add rax, rbx\n";
-     }
-     else if (node->op == "-") {
-         buffer += "    sub rax, rbx\n";
-     }
-     else if (node->op == "*") {
-         buffer += "    imul rax, rbx\n";
-     }
-     else if (node->op == "/") {
-         buffer += "    cqo\n";
-         buffer += "    idiv rbx\n";
-     }
-     else {
-         throw std::runtime_error(
-             "Unknown binary operator: " + node->op
-         );
-     }
+                pop_temp(buffer, "rax");
 
 
-     buffer += "    mov rbx, rax\n";
- }
+                if (node->op == "+") {
+                    buffer += "    add rax, rbx\n";
+                } else if (node->op == "-") {
+                    buffer += "    sub rax, rbx\n";
+                } else if (node->op == "*") {
+                    buffer += "    imul rax, rbx\n";
+                } else if (node->op == "/") {
+                    buffer += "    cqo\n";
+                    buffer += "    idiv rbx\n";
+                } else if (node->op == "%") {
+                    buffer += "    cqo\n";
+                    buffer += "    idiv rbx\n";
+                    buffer += "    mov rax, rdx\n";
+                } else {
+                    throw std::runtime_error(
+                        "Unknown binary operator: " + node->op
+                    );
+                }
+
+
+                buffer += "    mov rbx, rax\n";
+            }
         }, expr->expr);
     }
 

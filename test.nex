@@ -1,8 +1,8 @@
-set a = 10;
-set b = 30;
+set w = 7;
 
-iff (!(a < b & b == 20)) {
+iff ((w > 2) & (w % 2 == 0)) {
     exit(1);
 }
-
-exit(2);
+otherwise {
+    exit(0);
+}
