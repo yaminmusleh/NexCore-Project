@@ -27,9 +27,10 @@ struct BinaryExpr {
     NodeExpr *right = nullptr;
 };
 
+struct UnaryExpr;
 
 struct NodeExpr {
-    std::variant<NodeExprIntLit, NodeExprIdentifier, BinaryExpr *> expr;
+    std::variant<NodeExprIntLit, NodeExprIdentifier, BinaryExpr *, UnaryExpr *> expr;
 };
 
 
@@ -39,6 +40,11 @@ struct NodeStmntExit {
 
 struct NodeStmntLet {
     Token identifier;
+    NodeExpr *expr;
+};
+
+struct UnaryExpr {
+    std::string op;
     NodeExpr *expr;
 };
 
@@ -216,6 +222,34 @@ public:
         return left;
     }
 
+    [[nodiscard]] NodeExpr *parse_unary() {
+        if (peek() && peek()->type == TypeOfToken::logical_not) {
+            Token op = consume();
+
+            NodeExpr *operand = parse_unary(); // data that the operator acts upon, we want them to do !x
+            if (!operand)
+                throw std::runtime_error("Expected expression after !");
+
+            UnaryExpr *unary = m_arena.alloc<UnaryExpr>();
+            if (!unary)
+                throw std::bad_alloc{};
+
+            new(unary) UnaryExpr{
+                op.value.value(),
+                operand
+            };
+
+            NodeExpr *expr = m_arena.alloc<NodeExpr>();
+            if (!expr)
+                throw std::bad_alloc{};
+
+            return new(expr) NodeExpr{
+                unary
+            };
+        }
+        return parse_primary();
+    }
+
 
     [[nodiscard]] NodeExpr *parse_comparison() {
         NodeExpr *left = parse_additive();
@@ -272,7 +306,7 @@ public:
 
 
     [[nodiscard]] NodeExpr *parse_term() {
-        NodeExpr *left = parse_primary();
+        NodeExpr *left = parse_unary();
 
 
         if (!left)
@@ -289,7 +323,7 @@ public:
 
             Token op = consume();
 
-            NodeExpr *right = parse_primary();
+            NodeExpr *right = parse_unary();
 
             if (!right)
                 throw std::runtime_error("Expected expression after operator");

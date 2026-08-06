@@ -243,6 +243,21 @@ private:
                                  std::string &buffer,
                                  const std::string &trueLabel,
                                  const std::string &falseLabel) {
+        if (std::holds_alternative<UnaryExpr*>(condition->expr)) {
+            auto unary = std::get<UnaryExpr*>(condition->expr);
+
+            if (unary->op == "!") {
+                generate_condition_branch(
+                    unary->expr,
+                    buffer,
+                    falseLabel,
+                    trueLabel
+                    //as i see i swapped true label and false label because this is how Logical NOT works.
+                );
+
+                return;
+            }
+        }
         if (!std::holds_alternative<BinaryExpr *>(condition->expr)) {
             generate_expr(condition, buffer);
 
