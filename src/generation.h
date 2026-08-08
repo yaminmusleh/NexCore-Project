@@ -198,6 +198,15 @@ private:
                         Var{m_variableCount * 8};
             } else if constexpr (std::is_same_v<T, NodeStmntIf *>) {
                 generate_if(stmt, buffer, has_exit);
+            } else if constexpr (std::is_same_v<T, NodeStmntAssign>) {
+                std::string name = stmt.identifier.value.value();
+
+                generate_expr(stmt.expr, buffer);
+                Var var = lookup(name);
+
+                buffer += "    mov [rbp - ";
+                buffer += std::to_string(var.offset);
+                buffer += "], rbx\n";
             } else if constexpr (std::is_same_v<T, NodeScope *>) {
                 generate_scope(stmt, buffer, has_exit);
             }

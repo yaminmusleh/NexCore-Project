@@ -1,8 +1,8 @@
-set w = 7;
+set a = 5;
+set b = 10;
 
-iff ((w > 2) & (w % 2 == 0)) {
-    exit(1);
-}
-otherwise {
-    exit(0);
-}
+a = a + b;
+b = a * 2;
+a = b - a;
+
+exit(a);

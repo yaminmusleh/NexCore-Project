@@ -48,11 +48,16 @@ struct UnaryExpr {
     NodeExpr *expr;
 };
 
+struct NodeStmntAssign {
+    Token identifier;
+    NodeExpr *expr;
+};
+
 struct NodeScope;
 struct NodeStmntIf;
 
 struct NodeStmnt {
-    std::variant<NodeStmntExit, NodeStmntIf *, NodeStmntLet, NodeScope *> stmnt;
+    std::variant<NodeStmntExit, NodeStmntIf *, NodeStmntLet, NodeScope *, NodeStmntAssign> stmnt;
 };
 
 struct NodeScope {
@@ -514,7 +519,6 @@ public:
             if (!peek() || peek()->type != TypeOfToken::identifier)
                 throw std::runtime_error("Expected identifier after set");
 
-
             Token identifier = consume();
 
 
@@ -547,6 +551,36 @@ public:
 
             return new(memory) NodeStmnt{
                 NodeStmntLet{
+                    identifier,
+                    expr
+                }
+            };
+        }
+
+        if (peek() && peek()->type == TypeOfToken::identifier) {
+            Token identifier = consume();
+
+            if (!peek() || peek()->type != TypeOfToken::equals)
+                throw std::runtime_error("Expected '=' after identifier");
+
+            consume(); // consume '='
+
+            NodeExpr *expr = parse_logicalOr();
+            if (!expr)
+                throw std::runtime_error("Expected expression after '='");
+
+            if (!peek() || peek()->type != TypeOfToken::semi)
+                throw std::runtime_error("Expected ';'");
+
+            consume();
+
+            NodeStmnt *memory = m_arena.alloc<NodeStmnt>();
+
+            if (!memory)
+                throw std::bad_alloc{};
+
+            return new(memory) NodeStmnt{
+                NodeStmntAssign{
                     identifier,
                     expr
                 }
