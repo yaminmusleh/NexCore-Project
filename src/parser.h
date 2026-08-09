@@ -516,6 +516,43 @@ public:
             return new(stmnt) NodeStmnt{iff_stmnt};
         }
 
+        if (peek() && peek()->type == TypeOfToken::whilst_kw) {
+            consume();
+
+            if (!peek() || peek()->type != TypeOfToken::open_paren) {
+                throw std::runtime_error("Expected '(' after whilst");
+            }
+            consume();
+
+            NodeExpr *condition = parse_logicalOr();
+            if (!peek() || peek()->type != TypeOfToken::close_paren)
+                throw std::runtime_error("Expected ')' after whilst");
+            consume();
+
+            NodeScope parsed = parse_scope(); // this is scope iff(condition) {   }
+
+            NodeScope *scope = m_arena.alloc<NodeScope>();
+            if (!scope)
+                throw std::bad_alloc{};
+
+            new(scope) NodeScope(std::move(parsed));
+
+            NodeStmntWhile *while_st = m_arena.alloc<NodeStmntWhile>();
+
+            if (!while_st)
+                throw std::bad_alloc{};
+            new(while_st) NodeStmntWhile{
+                condition,
+                scope,
+
+            };
+
+            NodeStmnt *stmnt = m_arena.alloc<NodeStmnt>();
+            if (!stmnt)
+                throw std::bad_alloc{};
+            return new(stmnt) NodeStmnt{while_st};
+        }
+
 
         if (peek() && peek()->type == TypeOfToken::set) {
             consume(); // eat "set"

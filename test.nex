@@ -1,8 +1,12 @@
-set a = 5;
-set b = 10;
+set x = 0;
+set sum = 0;
 
-a = a + b;
-b = a * 2;
-a = b - a;
+whilst (x < 10) {
+    x = x + 1;
 
-exit(a);
+    iff (x % 2 == 0) {
+        sum = sum + 10;
+    }
+}
+
+exit(sum);

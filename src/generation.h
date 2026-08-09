@@ -130,6 +130,49 @@ private:
         has_exit = if_exit && else_exit;
     }
 
+    void generate_whilst(NodeStmntWhile *stmt,
+                         std::string &buffer,
+                         bool &has_exit) {
+        std::string startLabel =
+                ".L" + std::to_string(m_labelCount++);
+
+        std::string endLabel =
+                ".L" + std::to_string(m_labelCount++);
+
+        // Start of the loop.
+        buffer += startLabel + ":\n";
+
+        // Check condition.
+        //
+        // If condition is false,
+        // jump to endLabel.
+        generate_condition(
+            stmt->condition,
+            buffer,
+            endLabel
+        );
+
+        // Generate the body.
+        bool body_exit = false;
+
+        generate_scope(
+            stmt->scope,
+            buffer,
+            body_exit
+        );
+
+        // If the body did not exit the program,
+        // go back and check the condition again.
+        if (!body_exit) {
+            buffer += "    jmp " + startLabel + "\n";
+        }
+
+        // Loop ends here.
+        buffer += endLabel + ":\n";
+
+        has_exit = body_exit;
+    }
+
 
     // Generates a single statement.
     //
@@ -198,6 +241,8 @@ private:
                         Var{m_variableCount * 8};
             } else if constexpr (std::is_same_v<T, NodeStmntIf *>) {
                 generate_if(stmt, buffer, has_exit);
+            } else if constexpr (std::is_same_v<T, NodeStmntWhile *>) {
+                generate_whilst(stmt, buffer, has_exit);
             } else if constexpr (std::is_same_v<T, NodeStmntAssign>) {
                 std::string name = stmt.identifier.value.value();
 
