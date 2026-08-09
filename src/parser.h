@@ -55,9 +55,10 @@ struct NodeStmntAssign {
 
 struct NodeScope;
 struct NodeStmntIf;
+struct NodeStmntWhile;
 
 struct NodeStmnt {
-    std::variant<NodeStmntExit, NodeStmntIf *, NodeStmntLet, NodeScope *, NodeStmntAssign> stmnt;
+    std::variant<NodeStmntExit, NodeStmntIf *, NodeStmntLet, NodeScope *, NodeStmntAssign, NodeStmntWhile *> stmnt;
 };
 
 struct NodeScope {
@@ -71,6 +72,10 @@ struct NodeStmntIf {
     NodeStmntIf *else_if = nullptr;
 };
 
+struct NodeStmntWhile {
+    NodeExpr *condition;
+    NodeScope *scope;
+};
 
 struct NodeProgram {
     std::vector<NodeStmnt *> statements;

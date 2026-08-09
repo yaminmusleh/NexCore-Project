@@ -35,6 +35,7 @@ enum class TypeOfToken {
     logical_or,
     logical_not,
     percent,
+    whilst_kw, // while loop in a way that tortures users to write
 };
 
 struct Token {
@@ -89,6 +90,8 @@ public: //Everything below this line is accessible from outside the class to the
                     tokens.push_back(Token{TypeOfToken::iff_kw, buffer});
                 } else if (buffer == "otherwise") {
                     tokens.push_back(Token{TypeOfToken::otherwise_kw, buffer});
+                } else if (buffer == "whilst") {
+                    tokens.push_back(Token{TypeOfToken::whilst_kw, buffer});
                 } else {
                     tokens.push_back(Token{TypeOfToken::identifier, buffer});
                 }
@@ -180,12 +183,10 @@ public: //Everything below this line is accessible from outside the class to the
             } else if (c == '/') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::slash, "/"});
-            }
-            else if (c == '%') {
+            } else if (c == '%') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::percent, "%"});
-            }
-            else if (c == '&') {
+            } else if (c == '&') {
                 consume();
                 tokens.push_back(Token{TypeOfToken::logical_and, "&"});
             } else if (c == '|') {
