@@ -52,7 +52,26 @@ public:
 class Parser {
 private:
 	enum {
-		_EOF=0
+		_EOF=0,
+		_assign=1,
+		_condition_eq=2,
+		_bang_equal=3,
+		_less_equal=4,
+		_greater_equal=5,
+		_semi=6,
+		_open_paren=7,
+		_close_paren=8,
+		_open_scope=9,
+		_close_scope=10,
+		_plus=11,
+		_minus=12,
+		_star=13,
+		_slash=14,
+		_percent=15,
+		_logical_and=16,
+		_logical_or=17,
+		_identifier=18,
+		_int_lit=19
 	};
 	int maxT;
 

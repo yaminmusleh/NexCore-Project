@@ -6,8 +6,8 @@ set(CMAKE_CXX_STANDARD 20) #standard c++ version
 
 add_executable(nexc src/main.cpp
         src/tokenization.h
-        src/parser.h
         src/generation.h
         src/arena.h
         docs/Parser.cpp
-        docs/Scanner.cpp) #what to execute
+        docs/Scanner.cpp
+        src/ast.h) #what to execute

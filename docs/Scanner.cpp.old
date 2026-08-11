@@ -448,9 +448,31 @@ Scanner::~Scanner() {
 void Scanner::Init() {
 	EOL    = '\n';
 	eofSym = 0;
-	maxT = 1;
-	noSym = 1;
+	maxT = 22;
+	noSym = 22;
+	int i;
+	for (i = 65; i <= 90; ++i) start.set(i, 20);
+	for (i = 97; i <= 122; ++i) start.set(i, 20);
+	for (i = 48; i <= 57; ++i) start.set(i, 21);
+	start.set(61, 22);
+	start.set(33, 2);
+	start.set(60, 4);
+	start.set(62, 6);
+	start.set(59, 8);
+	start.set(40, 9);
+	start.set(41, 10);
+	start.set(123, 11);
+	start.set(125, 12);
+	start.set(43, 13);
+	start.set(45, 14);
+	start.set(42, 15);
+	start.set(47, 16);
+	start.set(37, 17);
+	start.set(38, 18);
+	start.set(124, 19);
 		start.set(Buffer::EoF, -1);
+	keywords.set(L"set", 20);
+	keywords.set(L"exit", 21);
 
 
 	tvalLength = 128;
@@ -566,7 +588,7 @@ void Scanner::AppendVal(Token *t) {
 
 Token* Scanner::NextToken() {
 	while (ch == ' ' ||
-			false
+			(ch >= 9 && ch <= 10) || ch == 13
 	) NextCh();
 
 	int recKind = noSym;
@@ -586,6 +608,65 @@ Token* Scanner::NextToken() {
 			}
 			t->kind = recKind; break;
 		} // NextCh already done
+		case 1:
+			case_1:
+			{t->kind = 2; break;}
+		case 2:
+			if (ch == L'=') {AddCh(); goto case_3;}
+			else {goto case_0;}
+		case 3:
+			case_3:
+			{t->kind = 3; break;}
+		case 4:
+			if (ch == L'=') {AddCh(); goto case_5;}
+			else {goto case_0;}
+		case 5:
+			case_5:
+			{t->kind = 4; break;}
+		case 6:
+			if (ch == L'=') {AddCh(); goto case_7;}
+			else {goto case_0;}
+		case 7:
+			case_7:
+			{t->kind = 5; break;}
+		case 8:
+			{t->kind = 6; break;}
+		case 9:
+			{t->kind = 7; break;}
+		case 10:
+			{t->kind = 8; break;}
+		case 11:
+			{t->kind = 9; break;}
+		case 12:
+			{t->kind = 10; break;}
+		case 13:
+			{t->kind = 11; break;}
+		case 14:
+			{t->kind = 12; break;}
+		case 15:
+			{t->kind = 13; break;}
+		case 16:
+			{t->kind = 14; break;}
+		case 17:
+			{t->kind = 15; break;}
+		case 18:
+			{t->kind = 16; break;}
+		case 19:
+			{t->kind = 17; break;}
+		case 20:
+			case_20:
+			recEnd = pos; recKind = 18;
+			if ((ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z')) {AddCh(); goto case_20;}
+			else {t->kind = 18; wchar_t *literal = coco_string_create(tval, 0, tlen); t->kind = keywords.get(literal, t->kind); coco_string_delete(literal); break;}
+		case 21:
+			case_21:
+			recEnd = pos; recKind = 19;
+			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_21;}
+			else {t->kind = 19; break;}
+		case 22:
+			recEnd = pos; recKind = 1;
+			if (ch == L'=') {AddCh(); goto case_1;}
+			else {t->kind = 1; break;}
 
 	}
 	AppendVal(t);

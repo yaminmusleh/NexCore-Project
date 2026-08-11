@@ -1,24 +1,131 @@
 COMPILER Nex
 
+{
+#include <string>
+#include <vector>
+#include "ast.h"
+#include "arena.h"
+
+ArenaAllocator *arena;
+NodeProgram program;
+}
+
 CHARACTERS
     letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
     digit  = "0123456789".
 
 TOKENS
-    identifier = letter { letter | digit }.
-    int_lit    = digit { digit }.
+    assign          = "=".
+    condition_eq    = "==".
+    bang_equal      = "!=".
+
+    less            = "<".
+    less_equal      = "<=".
+    greater         = ">".
+    greater_equal   = ">=".
+
+    semi            = ";".
+    open_paren      = "(".
+    close_paren     = ")".
+
+    open_scope      = "{".
+    close_scope     = "}".
+
+    plus            = "+".
+    minus           = "-".
+    star            = "*".
+    slash           = "/".
+    percent         = "%".
+
+    logical_and     = "&".
+    logical_or      = "|".
+    logical_not     = "!".
+
+    identifier      = letter { letter | digit }.
+    int_lit         = digit { digit }.
+
+COMMENTS FROM ";;" TO "\n"
+COMMENTS FROM ";*" TO "*;" NESTED
 
 IGNORE '\r' + '\n' + '\t'
 
 PRODUCTIONS
 
 Nex = 
-    ( "exit" 
-    | "set" 
-    | "iff" 
-    | "otherwise" 
-    | "whilst" 
-    )
+    { Statement }
+    .
+
+Statement = 
+      SetStmt
+    | ExitStmt
+    | IfStmt
+    | WhileStmt
+    | BlockStmt
+    | AssignStmt
+    .
+
+SetStmt = 
+    "set" identifier assign Expression semi
+    .
+
+AssignStmt = 
+    identifier assign Expression semi
+    .
+
+ExitStmt = 
+    "exit" open_paren Expression close_paren semi
+    .
+
+IfStmt = 
+    "iff" open_paren Expression close_paren Statement [ "otherwise" Statement ]
+    .
+
+WhileStmt = 
+    "whilst" open_paren Expression close_paren Statement
+    .
+
+BlockStmt = 
+    open_scope { Statement } close_scope
+    .
+
+/* Precedence 1 (Lowest): Logical OR */
+Expression = 
+    AndExpr { logical_or AndExpr }
+    .
+
+/* Precedence 2: Logical AND */
+AndExpr = 
+    EqualityExpr { logical_and EqualityExpr }
+    .
+
+/* Precedence 3: Relational / Equality (==, !=, <, <=, >, >=) */
+EqualityExpr = 
+    AddExpr 
+    [ ( condition_eq | bang_equal | less | less_equal | greater | greater_equal ) AddExpr ]
+    .
+
+/* Precedence 4: Addition / Subtraction */
+AddExpr = 
+    MultExpr { ( plus | minus ) MultExpr }
+    .
+
+/* Precedence 5: Multiplication / Division / Modulo */
+MultExpr = 
+    UnaryExpr { ( star | slash | percent ) UnaryExpr }
+    .
+
+/* Precedence 6: Unary Operators (!, -) */
+UnaryExpr = 
+      logical_not UnaryExpr
+    | minus UnaryExpr
+    | PrimaryExpr
+    .
+
+/* Precedence 7 (Highest): Atoms */
+PrimaryExpr = 
+      identifier
+    | int_lit
+    | open_paren Expression close_paren
     .
 
 END Nex.
