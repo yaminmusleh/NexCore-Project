@@ -89,110 +89,221 @@ bool Parser::WeakSeparator(int n, int syFol, int repFol) {
 }
 
 void Parser::Nex() {
+		
 		while (StartOf(1)) {
-			Statement();
+			Statement(out NodeStmnt *statement);
+			program.statements.push_back(statement);
+			
 		}
 }
 
-void Parser::Statement() {
+void Parser::Statement(out NodeStmnt *statement) {
+		statement = nullptr;
+		
 		switch (la->kind) {
 		case 23 /* "set" */: {
-			SetStmt();
+			SetStmt(out statement);
 			break;
 		}
 		case 24 /* "exit" */: {
-			ExitStmt();
+			ExitStmt(out statement);
 			break;
 		}
 		case 25 /* "iff" */: {
-			IfStmt();
+			IfStmt(out statement);
 			break;
 		}
 		case 27 /* "whilst" */: {
-			WhileStmt();
+			WhileStmt(out statement);
 			break;
 		}
 		case _open_scope: {
-			BlockStmt();
+			BlockStmt(out statement);
 			break;
 		}
 		case _identifier: {
-			AssignStmt();
+			AssignStmt(out statement);
 			break;
 		}
 		default: SynErr(29); break;
 		}
 }
 
-void Parser::SetStmt() {
+void Parser::SetStmt(out NodeStmnt *statement) {
+		std::string name;
+		NodeExpr *expr = nullptr;
+		
 		Expect(23 /* "set" */);
 		Expect(_identifier);
+		name = token_string(t);
+		
 		Expect(_assign);
-		Expression();
+		Expression(out expr);
 		Expect(_semi);
+		statement = make_let(
+		   name,
+		   expr
+		);
+		
 }
 
-void Parser::ExitStmt() {
+void Parser::ExitStmt(out NodeStmnt *statement) {
+		NodeExpr *expr = nullptr;
+		
 		Expect(24 /* "exit" */);
 		Expect(_open_paren);
-		Expression();
+		Expression(out expr);
 		Expect(_close_paren);
 		Expect(_semi);
+		statement = make_exit(expr);
+		
 }
 
-void Parser::IfStmt() {
+void Parser::IfStmt(out NodeStmnt *statement) {
+		NodeExpr *condition = nullptr;
+		NodeScope *scope = nullptr;
+		NodeScope *else_scope = nullptr;
+		NodeStmntIf *else_if = nullptr;
+		NodeStmnt *else_statement = nullptr;
+		
 		Expect(25 /* "iff" */);
 		Expect(_open_paren);
-		Expression();
+		Expression(out condition);
 		Expect(_close_paren);
-		Statement();
+		BlockStmt(out statement);
+		scope =
+		   std::get<NodeScope *>(
+		       statement->stmnt
+		   );
+		
 		if (la->kind == 26 /* "otherwise" */) {
 			Get();
-			Statement();
+			if (la->kind == 25 /* "iff" */) {
+				IfStmt(out else_statement);
+				else_if =
+				   get_if_statement(
+				       else_statement
+				   );
+				
+			} else if (la->kind == _open_scope) {
+				BlockStmt(out else_statement);
+				else_scope =
+				   std::get<NodeScope *>(
+				       else_statement->stmnt
+				   );
+				
+			} else SynErr(30);
 		}
+		statement = make_if(
+		   condition,
+		   scope,
+		   else_scope,
+		   else_if
+		);
+		
 }
 
-void Parser::WhileStmt() {
+void Parser::WhileStmt(out NodeStmnt *statement) {
+		NodeExpr *condition = nullptr;
+		NodeStmnt *body_statement = nullptr;
+		NodeScope *scope = nullptr;
+		
 		Expect(27 /* "whilst" */);
 		Expect(_open_paren);
-		Expression();
+		Expression(out condition);
 		Expect(_close_paren);
-		Statement();
+		BlockStmt(out body_statement);
+		scope =
+		   std::get<NodeScope *>(
+		       body_statement->stmnt
+		   );
+		
+		statement = make_while(
+		   condition,
+		   scope
+		);
+		
 }
 
-void Parser::BlockStmt() {
+void Parser::BlockStmt(out NodeStmnt *statement) {
+		NodeScope *scope = nullptr;
+		
 		Expect(_open_scope);
+		scope = make_scope();
+		
 		while (StartOf(1)) {
-			Statement();
+			Statement(out NodeStmnt *child);
+			scope->statements.push_back(child);
+			
 		}
 		Expect(_close_scope);
+		statement = make_scope_statement(scope);
+		
 }
 
-void Parser::AssignStmt() {
+void Parser::AssignStmt(out NodeStmnt *statement) {
+		std::string name;
+		NodeExpr *expr = nullptr;
+		
 		Expect(_identifier);
+		name = token_string(t);
+		
 		Expect(_assign);
-		Expression();
+		Expression(out expr);
 		Expect(_semi);
+		statement = make_assign(
+		   name,
+		   expr
+		);
+		
 }
 
-void Parser::Expression() {
-		AndExpr();
+void Parser::Expression(out NodeExpr *expr) {
+		NodeExpr *left = nullptr;
+		
+		AndExpr(out left);
 		while (la->kind == _logical_or) {
 			Get();
-			AndExpr();
+			std::string op =
+			   token_string(t);
+			
+			AndExpr(out NodeExpr *right);
+			left = make_binary_expr(
+			   left,
+			   op,
+			   right
+			);
+			
 		}
+		expr = left;
+		
 }
 
-void Parser::AndExpr() {
-		EqualityExpr();
+void Parser::AndExpr(out NodeExpr *expr) {
+		NodeExpr *left = nullptr;
+		
+		EqualityExpr(out left);
 		while (la->kind == _logical_and) {
 			Get();
-			EqualityExpr();
+			std::string op =
+			   token_string(t);
+			
+			EqualityExpr(out NodeExpr *right);
+			left = make_binary_expr(
+			   left,
+			   op,
+			   right
+			);
+			
 		}
+		expr = left;
+		
 }
 
-void Parser::EqualityExpr() {
-		AddExpr();
+void Parser::EqualityExpr(out NodeExpr *expr) {
+		NodeExpr *left = nullptr;
+		
+		AddExpr(out left);
 		if (StartOf(2)) {
 			switch (la->kind) {
 			case _condition_eq: {
@@ -220,24 +331,50 @@ void Parser::EqualityExpr() {
 				break;
 			}
 			}
-			AddExpr();
+			std::string op =
+			   token_string(t);
+			
+			AddExpr(out NodeExpr *right);
+			left = make_binary_expr(
+			   left,
+			   op,
+			   right
+			);
+			
 		}
+		expr = left;
+		
 }
 
-void Parser::AddExpr() {
-		MultExpr();
+void Parser::AddExpr(out NodeExpr *expr) {
+		NodeExpr *left = nullptr;
+		
+		MultExpr(out left);
 		while (la->kind == _plus || la->kind == _minus) {
 			if (la->kind == _plus) {
 				Get();
 			} else {
 				Get();
 			}
-			MultExpr();
+			std::string op =
+			   token_string(t);
+			
+			MultExpr(out NodeExpr *right);
+			left = make_binary_expr(
+			   left,
+			   op,
+			   right
+			);
+			
 		}
+		expr = left;
+		
 }
 
-void Parser::MultExpr() {
-		UnaryExpr();
+void Parser::MultExpr(out NodeExpr *expr) {
+		NodeExpr *left = nullptr;
+		
+		UnaryExpr(out left);
 		while (la->kind == _star || la->kind == _slash || la->kind == _percent) {
 			if (la->kind == _star) {
 				Get();
@@ -246,32 +383,71 @@ void Parser::MultExpr() {
 			} else {
 				Get();
 			}
-			UnaryExpr();
+			std::string op =
+			   token_string(t);
+			
+			UnaryExpr(out NodeExpr *right);
+			left = make_binary_expr(
+			   left,
+			   op,
+			   right
+			);
+			
 		}
+		expr = left;
+		
 }
 
-void Parser::UnaryExpr() {
+void Parser::UnaryExpr(out NodeExpr *expr) {
+		NodeExpr *operand = nullptr;
+		
 		if (la->kind == _logical_not) {
 			Get();
-			UnaryExpr();
+			std::string op =
+			   token_string(t);
+			
+			UnaryExpr(out operand);
+			expr = make_unary_expr(
+			   op,
+			   operand
+			);
+			
 		} else if (la->kind == _minus) {
 			Get();
-			UnaryExpr();
+			std::string op =
+			   token_string(t);
+			
+			UnaryExpr(out operand);
+			expr = make_unary_expr(
+			   op,
+			   operand
+			);
+			
 		} else if (la->kind == _open_paren || la->kind == _identifier || la->kind == _int_lit) {
-			PrimaryExpr();
-		} else SynErr(30);
+			PrimaryExpr(out expr);
+		} else SynErr(31);
 }
 
-void Parser::PrimaryExpr() {
+void Parser::PrimaryExpr(out NodeExpr *expr) {
 		if (la->kind == _identifier) {
 			Get();
+			expr =
+			   make_identifier_expr(
+			       token_string(t)
+			   );
+			
 		} else if (la->kind == _int_lit) {
 			Get();
+			expr =
+			   make_int_expr(
+			       token_string(t)
+			   );
+			
 		} else if (la->kind == _open_paren) {
 			Get();
-			Expression();
+			Expression(out expr);
 			Expect(_close_paren);
-		} else SynErr(31);
+		} else SynErr(32);
 }
 
 
@@ -444,8 +620,9 @@ void Errors::SynErr(int line, int col, int n) {
 			case 27: s = coco_string_create(L"\"whilst\" expected"); break;
 			case 28: s = coco_string_create(L"??? expected"); break;
 			case 29: s = coco_string_create(L"invalid Statement"); break;
-			case 30: s = coco_string_create(L"invalid UnaryExpr"); break;
-			case 31: s = coco_string_create(L"invalid PrimaryExpr"); break;
+			case 30: s = coco_string_create(L"invalid IfStmt"); break;
+			case 31: s = coco_string_create(L"invalid UnaryExpr"); break;
+			case 32: s = coco_string_create(L"invalid PrimaryExpr"); break;
 
 		default:
 		{

@@ -637,7 +637,7 @@ void Scanner::AppendVal(Token *t) {
 
 Token* Scanner::NextToken() {
 	while (ch == ' ' ||
-			(ch >= 9 && ch <= 10) || ch == 13
+			(ch >= 9 && ch <= 10) || ch == 13 || ch == L' '
 	) NextCh();
 	if ((ch == L';' && Comment0()) || (ch == L';' && Comment1())) return NextToken();
 	int recKind = noSym;

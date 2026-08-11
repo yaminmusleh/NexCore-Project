@@ -84,3 +84,7 @@ struct NodeStmntWhile {
 struct NodeProgram {
     std::vector<NodeStmnt *> statements;
 };
+struct ParserContext {
+    ArenaAllocator &arena;
+    NodeProgram program;
+};

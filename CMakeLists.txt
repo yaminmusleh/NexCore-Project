@@ -1,13 +1,16 @@
-cmake_minimum_required(VERSION 4.2) #min version
+cmake_minimum_required(VERSION 4.2)
 
-project(nexcore) #project name
+project(nexcore)
 
-set(CMAKE_CXX_STANDARD 20) #standard c++ version
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-add_executable(nexc src/main.cpp
+add_executable(nexc
+        src/main.cpp
         src/tokenization.h
-        src/generation.h
         src/arena.h
-        docs/Parser.cpp
-        docs/Scanner.cpp
-        src/ast.h) #what to execute
+        src/ast.h
+        src/parser.h
+        src/parser.cpp
+        src/generation.h
+)

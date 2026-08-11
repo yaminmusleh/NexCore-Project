@@ -1,131 +1,871 @@
 COMPILER Nex
 
-{
-#include <string>
-#include <vector>
-#include "ast.h"
-#include "arena.h"
+(. 
+#include "../src/ast.h"
+#include "../src/arena.h"
 
-ArenaAllocator *arena;
+#include <string>
+#include <stdexcept>
+#include <cwchar>
+#include <utility>
+
+//
+// The generated Coco/R parser will build the AST through these.
+//
+// main() will set:
+//
+//     arena = &myArena;
+//
+// before calling:
+//
+//     parser.Nex();
+//
+
+ArenaAllocator *arena = nullptr;
 NodeProgram program;
+
+static std::string token_string(Token *token)
+{
+    if (!token || !token->val)
+        return {};
+
+    std::wstring wide(token->val);
+
+    return std::string(
+        wide.begin(),
+        wide.end()
+    );
 }
 
+static NodeExpr *make_int_expr(const std::string &value)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    NodeExprIntLit node{
+        value
+    };
+
+    return new(expr) NodeExpr{
+        node
+    };
+}
+
+static NodeExpr *make_identifier_expr(const std::string &value)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    NodeExprIdentifier node{
+        value
+    };
+
+    return new(expr) NodeExpr{
+        node
+    };
+}
+
+static NodeExpr *make_binary_expr(
+    NodeExpr *left,
+    const std::string &op,
+    NodeExpr *right
+)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    BinaryExpr *binary = arena->alloc<BinaryExpr>();
+
+    if (!binary)
+        throw std::bad_alloc{};
+
+    new(binary) BinaryExpr{
+        left,
+        op,
+        right
+    };
+
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    return new(expr) NodeExpr{
+        binary
+    };
+}
+
+static NodeExpr *make_unary_expr(
+    const std::string &op,
+    NodeExpr *operand
+)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    UnaryExpr *unary = arena->alloc<UnaryExpr>();
+
+    if (!unary)
+        throw std::bad_alloc{};
+
+    new(unary) UnaryExpr{
+        op,
+        operand
+    };
+
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    return new(expr) NodeExpr{
+        unary
+    };
+}
+
+static NodeScope *make_scope()
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeScope *scope = arena->alloc<NodeScope>();
+
+    if (!scope)
+        throw std::bad_alloc{};
+
+    return new(scope) NodeScope{};
+}
+
+static NodeStmnt *make_statement()
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeStmnt *statement = arena->alloc<NodeStmnt>();
+
+    if (!statement)
+        throw std::bad_alloc{};
+
+    return statement;
+}
+
+static NodeStmnt *make_let(
+    const std::string &identifier,
+    NodeExpr *expr
+)
+{
+    NodeStmnt *statement = make_statement();
+
+    return new(statement) NodeStmnt{
+        NodeStmntLet{
+            identifier,
+            expr
+        }
+    };
+}
+
+static NodeStmnt *make_assign(
+    const std::string &identifier,
+    NodeExpr *expr
+)
+{
+    NodeStmnt *statement = make_statement();
+
+    return new(statement) NodeStmnt{
+        NodeStmntAssign{
+            identifier,
+            expr
+        }
+    };
+}
+
+static NodeStmnt *make_exit(NodeExpr *expr)
+{
+    NodeStmnt *statement = make_statement();
+
+    return new(statement) NodeStmnt{
+        NodeStmntExit{
+            expr
+        }
+    };
+}
+
+static NodeStmnt *make_scope_statement(NodeScope *scope)
+{
+    NodeStmnt *statement = make_statement();
+
+    return new(statement) NodeStmnt{
+        scope
+    };
+}
+
+static NodeStmnt *make_if(
+    NodeExpr *condition,
+    NodeScope *scope,
+    NodeScope *else_scope,
+    NodeStmntIf *else_if
+)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeStmntIf *if_statement =
+        arena->alloc<NodeStmntIf>();
+
+    if (!if_statement)
+        throw std::bad_alloc{};
+
+    new(if_statement) NodeStmntIf{
+        condition,
+        scope,
+        else_scope,
+        else_if
+    };
+
+    NodeStmnt *statement = make_statement();
+
+    return new(statement) NodeStmnt{
+        if_statement
+    };
+}
+
+static NodeStmntIf *get_if_statement(NodeStmnt *statement)
+{
+    if (!statement)
+        throw std::runtime_error(
+            "Expected if statement"
+        );
+
+    return std::get<NodeStmntIf *>(
+        statement->stmnt
+    );
+}
+
+static NodeStmnt *make_while(
+    NodeExpr *condition,
+    NodeScope *scope
+)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeStmntWhile *while_statement =
+        arena->alloc<NodeStmntWhile>();
+
+    if (!while_statement)
+        throw std::bad_alloc{};
+
+    new(while_statement) NodeStmntWhile{
+        condition,
+        scope
+    };
+
+    NodeStmnt *statement = make_statement();
+
+    return new(statement) NodeStmnt{
+        while_statement
+    };
+}
+.)
+
 CHARACTERS
-    letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
-    digit  = "0123456789".
+
+    letter =
+        "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
+
+    digit =
+        "0123456789".
+
 
 TOKENS
-    assign          = "=".
-    condition_eq    = "==".
-    bang_equal      = "!=".
 
-    less            = "<".
-    less_equal      = "<=".
-    greater         = ">".
-    greater_equal   = ">=".
+    assign =
+        "=".
 
-    semi            = ";".
-    open_paren      = "(".
-    close_paren     = ")".
+    condition_eq =
+        "==".
 
-    open_scope      = "{".
-    close_scope     = "}".
+    bang_equal =
+        "!=".
 
-    plus            = "+".
-    minus           = "-".
-    star            = "*".
-    slash           = "/".
-    percent         = "%".
+    less =
+        "<".
 
-    logical_and     = "&".
-    logical_or      = "|".
-    logical_not     = "!".
+    less_equal =
+        "<=".
 
-    identifier      = letter { letter | digit }.
-    int_lit         = digit { digit }.
+    greater =
+        ">".
+
+    greater_equal =
+        ">=".
+
+
+    semi =
+        ";".
+
+    open_paren =
+        "(".
+
+    close_paren =
+        ")".
+
+    open_scope =
+        "{".
+
+    close_scope =
+        "}".
+
+    plus =
+        "+".
+
+    minus =
+        "-".
+
+    star =
+        "*".
+
+    slash =
+        "/".
+
+    percent =
+        "%".
+
+    logical_and =
+        "&".
+
+    logical_or =
+        "|".
+
+    logical_not =
+        "!".
+
+    identifier =
+        letter { letter | digit }.
+
+    int_lit =
+        digit { digit }.
+
 
 COMMENTS FROM ";;" TO "\n"
+
 COMMENTS FROM ";*" TO "*;" NESTED
 
-IGNORE '\r' + '\n' + '\t'
+IGNORE '\r' + '\n' + '\t' + ' '
+
 
 PRODUCTIONS
 
-Nex = 
-    { Statement }
-    .
 
-Statement = 
-      SetStmt
-    | ExitStmt
-    | IfStmt
-    | WhileStmt
-    | BlockStmt
-    | AssignStmt
-    .
+Nex
+(. 
+.)
+=
+{
+    Statement<out NodeStmnt *statement>
+    (. 
+        program.statements.push_back(statement);
+    .)
+}
+.
 
-SetStmt = 
-    "set" identifier assign Expression semi
-    .
 
-AssignStmt = 
-    identifier assign Expression semi
-    .
+Statement<out NodeStmnt *statement>
+(. 
+    statement = nullptr;
+.)
+=
+      SetStmt<out statement>
+    | ExitStmt<out statement>
+    | IfStmt<out statement>
+    | WhileStmt<out statement>
+    | BlockStmt<out statement>
+    | AssignStmt<out statement>
+.
 
-ExitStmt = 
-    "exit" open_paren Expression close_paren semi
-    .
 
-IfStmt = 
-    "iff" open_paren Expression close_paren Statement [ "otherwise" Statement ]
-    .
+SetStmt<out NodeStmnt *statement>
+(. 
+    std::string name;
+    NodeExpr *expr = nullptr;
+.)
+=
+    "set"
 
-WhileStmt = 
-    "whilst" open_paren Expression close_paren Statement
-    .
+    identifier
+    (.
+        name = token_string(t);
+    .)
 
-BlockStmt = 
-    open_scope { Statement } close_scope
-    .
+    assign
 
-/* Precedence 1 (Lowest): Logical OR */
-Expression = 
-    AndExpr { logical_or AndExpr }
-    .
+    Expression<out expr>
 
-/* Precedence 2: Logical AND */
-AndExpr = 
-    EqualityExpr { logical_and EqualityExpr }
-    .
+    semi
 
-/* Precedence 3: Relational / Equality (==, !=, <, <=, >, >=) */
-EqualityExpr = 
-    AddExpr 
-    [ ( condition_eq | bang_equal | less | less_equal | greater | greater_equal ) AddExpr ]
-    .
+    (.
+        statement = make_let(
+            name,
+            expr
+        );
+    .)
+.
 
-/* Precedence 4: Addition / Subtraction */
-AddExpr = 
-    MultExpr { ( plus | minus ) MultExpr }
-    .
 
-/* Precedence 5: Multiplication / Division / Modulo */
-MultExpr = 
-    UnaryExpr { ( star | slash | percent ) UnaryExpr }
-    .
+AssignStmt<out NodeStmnt *statement>
+(. 
+    std::string name;
+    NodeExpr *expr = nullptr;
+.)
+=
+    identifier
+    (.
+        name = token_string(t);
+    .)
 
-/* Precedence 6: Unary Operators (!, -) */
-UnaryExpr = 
-      logical_not UnaryExpr
-    | minus UnaryExpr
-    | PrimaryExpr
-    .
+    assign
 
-/* Precedence 7 (Highest): Atoms */
-PrimaryExpr = 
+    Expression<out expr>
+
+    semi
+
+    (.
+        statement = make_assign(
+            name,
+            expr
+        );
+    .)
+.
+
+
+ExitStmt<out NodeStmnt *statement>
+(. 
+    NodeExpr *expr = nullptr;
+.)
+=
+    "exit"
+
+    open_paren
+
+    Expression<out expr>
+
+    close_paren
+
+    semi
+
+    (.
+        statement = make_exit(expr);
+    .)
+.
+
+
+IfStmt<out NodeStmnt *statement>
+(. 
+    NodeExpr *condition = nullptr;
+    NodeScope *scope = nullptr;
+    NodeScope *else_scope = nullptr;
+    NodeStmntIf *else_if = nullptr;
+    NodeStmnt *else_statement = nullptr;
+.)
+=
+    "iff"
+
+    open_paren
+
+    Expression<out condition>
+
+    close_paren
+
+    BlockStmt<out statement>
+
+    (.
+        scope =
+            std::get<NodeScope *>(
+                statement->stmnt
+            );
+    .)
+
+    [
+        "otherwise"
+
+        (
+            IfStmt<out else_statement>
+            (.
+                else_if =
+                    get_if_statement(
+                        else_statement
+                    );
+            .)
+
+          |
+
+            BlockStmt<out else_statement>
+            (.
+                else_scope =
+                    std::get<NodeScope *>(
+                        else_statement->stmnt
+                    );
+            .)
+        )
+    ]
+
+    (.
+        statement = make_if(
+            condition,
+            scope,
+            else_scope,
+            else_if
+        );
+    .)
+.
+
+
+WhileStmt<out NodeStmnt *statement>
+(. 
+    NodeExpr *condition = nullptr;
+    NodeStmnt *body_statement = nullptr;
+    NodeScope *scope = nullptr;
+.)
+=
+    "whilst"
+
+    open_paren
+
+    Expression<out condition>
+
+    close_paren
+
+    BlockStmt<out body_statement>
+
+    (.
+        scope =
+            std::get<NodeScope *>(
+                body_statement->stmnt
+            );
+
+        statement = make_while(
+            condition,
+            scope
+        );
+    .)
+.
+
+
+BlockStmt<out NodeStmnt *statement>
+(. 
+    NodeScope *scope = nullptr;
+.)
+=
+    open_scope
+
+    (.
+        scope = make_scope();
+    .)
+
+    {
+        Statement<out NodeStmnt *child>
+        (.
+            scope->statements.push_back(child);
+        .)
+    }
+
+    close_scope
+
+    (.
+        statement = make_scope_statement(scope);
+    .)
+.
+
+
+/*
+ * ============================================================
+ * EXPRESSION
+ * ============================================================
+ *
+ * Precedence, lowest → highest:
+ *
+ * Expression
+ *     Logical OR
+ *
+ * AndExpr
+ *     Logical AND
+ *
+ * EqualityExpr
+ *     == != < <= > >=
+ *
+ * AddExpr
+ *     + -
+ *
+ * MultExpr
+ *     * / %
+ *
+ * UnaryExpr
+ *     ! -
+ *
+ * PrimaryExpr
+ *     identifiers, integers, (...)
+ *
+ * ============================================================
+ */
+
+
+Expression<out NodeExpr *expr>
+(. 
+    NodeExpr *left = nullptr;
+.)
+=
+    AndExpr<out left>
+
+    {
+        logical_or
+
+        (.
+            std::string op =
+                token_string(t);
+        .)
+
+        AndExpr<out NodeExpr *right>
+
+        (.
+            left = make_binary_expr(
+                left,
+                op,
+                right
+            );
+        .)
+    }
+
+    (.
+        expr = left;
+    .)
+.
+
+
+AndExpr<out NodeExpr *expr>
+(. 
+    NodeExpr *left = nullptr;
+.)
+=
+    EqualityExpr<out left>
+
+    {
+        logical_and
+
+        (.
+            std::string op =
+                token_string(t);
+        .)
+
+        EqualityExpr<out NodeExpr *right>
+
+        (.
+            left = make_binary_expr(
+                left,
+                op,
+                right
+            );
+        .)
+    }
+
+    (.
+        expr = left;
+    .)
+.
+
+
+EqualityExpr<out NodeExpr *expr>
+(. 
+    NodeExpr *left = nullptr;
+.)
+=
+    AddExpr<out left>
+
+    [
+        (
+              condition_eq
+            | bang_equal
+            | less
+            | less_equal
+            | greater
+            | greater_equal
+        )
+
+        (.
+            std::string op =
+                token_string(t);
+        .)
+
+        AddExpr<out NodeExpr *right>
+
+        (.
+            left = make_binary_expr(
+                left,
+                op,
+                right
+            );
+        .)
+    ]
+
+    (.
+        expr = left;
+    .)
+.
+
+
+AddExpr<out NodeExpr *expr>
+(. 
+    NodeExpr *left = nullptr;
+.)
+=
+    MultExpr<out left>
+
+    {
+        (
+              plus
+            | minus
+        )
+
+        (.
+            std::string op =
+                token_string(t);
+        .)
+
+        MultExpr<out NodeExpr *right>
+
+        (.
+            left = make_binary_expr(
+                left,
+                op,
+                right
+            );
+        .)
+    }
+
+    (.
+        expr = left;
+    .)
+.
+
+
+MultExpr<out NodeExpr *expr>
+(. 
+    NodeExpr *left = nullptr;
+.)
+=
+    UnaryExpr<out left>
+
+    {
+        (
+              star
+            | slash
+            | percent
+        )
+
+        (.
+            std::string op =
+                token_string(t);
+        .)
+
+        UnaryExpr<out NodeExpr *right>
+
+        (.
+            left = make_binary_expr(
+                left,
+                op,
+                right
+            );
+        .)
+    }
+
+    (.
+        expr = left;
+    .)
+.
+
+
+UnaryExpr<out NodeExpr *expr>
+(. 
+    NodeExpr *operand = nullptr;
+.)
+=
+      logical_not
+
+      (.
+          std::string op =
+              token_string(t);
+      .)
+
+      UnaryExpr<out operand>
+
+      (.
+          expr = make_unary_expr(
+              op,
+              operand
+          );
+      .)
+
+    |
+
+      minus
+
+      (.
+          std::string op =
+              token_string(t);
+      .)
+
+      UnaryExpr<out operand>
+
+      (.
+          expr = make_unary_expr(
+              op,
+              operand
+          );
+      .)
+
+    |
+
+      PrimaryExpr<out expr>
+.
+
+
+PrimaryExpr<out NodeExpr *expr>
+=
       identifier
-    | int_lit
-    | open_paren Expression close_paren
-    .
+      (.
+          expr =
+              make_identifier_expr(
+                  token_string(t)
+              );
+      .)
+
+    |
+
+      int_lit
+      (.
+          expr =
+              make_int_expr(
+                  token_string(t)
+              );
+      .)
+
+    |
+
+      open_paren
+
+      Expression<out expr>
+
+      close_paren
+.
+
 
 END Nex.

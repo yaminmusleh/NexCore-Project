@@ -1,68 +1,60 @@
-#include<iostream>
-#include<fstream>
-#include<sstream>
-#include<optional>
-#include<vector>
-#include<cctype>
-#include "./tokenization.h"
-#include "./parser.h"
-#include "./generation.h"
-using namespace std;
-
+#include <cstdlib>
+#include <fstream>
+#include <iostream>
+#include <iterator>
+#include <string>
+#include <utility>
+#include "arena.h"
+#include "ast.h"
+#include "parser.h"
+#include "generation.h"
 
 int main(int argc, char *argv[]) {
     if (argc != 2) {
-        cerr << "Incorrect usage. Correct usage is..." << endl;
-        cerr << "nexcore <input.nex>" << endl;
+        std::cerr << "Incorrect usage.\n";
+        std::cerr << "Correct usage: nexcore <input.nex>\n";
         return EXIT_FAILURE;
-    }
-
-    fstream file(argv[1], ios::in);
-
-    if (!file) {
-        cerr << "Failed to open file." << endl;
-        return EXIT_FAILURE;
-    }
-
-    stringstream buffer;
-    buffer << file.rdbuf();
-
-    string contents = buffer.str();
-
-    Tokenization tokenizer(std::move(contents));
-    vector<Token> tokens = tokenizer.tokenize(); // save returned tokens
-    cout << "Token count: " << tokens.size() << '\n';
-
-    for (const auto &t: tokens) {
-        cout << static_cast<int>(t.type);
-
-        if (t.value)
-            cout << " -> " << *t.value;
-
-        cout << '\n';
     }
 
     ArenaAllocator arena(1024 * 1024);
-    Parser parser(std::move(tokens),arena);
 
-    NodeProgram root = parser.parse();
+    std::string filename = argv[1];
 
+    std::ifstream input(filename);
 
-    Generator generator(std::move(root)); // passing the root value for the generator
-
-    {
-        fstream file2("out.asm", ios::out); // we want the output to become an assembly separate file
-        file2 << generator.generate();
-        // insert the tokens (which are the assembly code we got) into the file
+    if (!input) {
+        std::cerr << "Failed to open " << filename << "\n";
+        return EXIT_FAILURE;
     }
 
+    std::string source(
+        (std::istreambuf_iterator<char>(input)),
+        std::istreambuf_iterator<char>()
+    );
+
+    Parser parser(source, arena);
+    NodeProgram program = parser.parse();
+
+    Generator generator(std::move(program));
+
+    std::ofstream output("out.asm");
+
+    if (!output) {
+        std::cerr << "Failed to create out.asm\n";
+        return EXIT_FAILURE;
+    }
+
+    output << generator.generate();
+
+    output.close();
+
     if (system("nasm -f elf64 out.asm") != 0) {
-        cerr << "NASM failed.\n";
+        std::cerr << "NASM failed.\n";
         return EXIT_FAILURE;
     }
 
     if (system("ld -o out out.o") != 0) {
-        cerr << "Linker failed.\n";
+        std::cerr << "Linker failed.\n";
         return EXIT_FAILURE;
     }
 

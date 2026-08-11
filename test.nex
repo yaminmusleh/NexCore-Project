@@ -1,12 +1,30 @@
-set x = 0;
-set sum = 0;
+set x = -8;
+set y = 3;
+set result = 0;
 
-whilst (x < 10) {
-    x = x + 1;
-
-    iff (x % 2 == 0) {
-        sum = sum + 10;
+whilst (x < 5) {
+    if (!(x == 0)) {
+        result = result + (x * x) % 7;
+    } else {
+        result = result + 20;
     }
+
+    if (x < -3) {
+        result = result + 4;
+    } else {
+        result = result - 2;
+    }
+
+    x = x + 2;
 }
 
-exit(sum);
+set quotient = result / y;
+set remainder = result % y;
+
+if (remainder == 0) {
+    result = quotient * 2;
+} else {
+    result = quotient + remainder;
+}
+
+exit(result);

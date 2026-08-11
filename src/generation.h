@@ -207,7 +207,7 @@ private:
             // set variable = expression;
             else if constexpr (std::is_same_v<T, NodeStmntLet>) {
                 std::string name =
-                        stmt.identifier.value.value();
+                        stmt.identifier;
 
 
                 // Generate the expression first.
@@ -244,7 +244,7 @@ private:
             } else if constexpr (std::is_same_v<T, NodeStmntWhile *>) {
                 generate_whilst(stmt, buffer, has_exit);
             } else if constexpr (std::is_same_v<T, NodeStmntAssign>) {
-                std::string name = stmt.identifier.value.value();
+                std::string name = stmt.identifier;
 
                 generate_expr(stmt.expr, buffer);
                 Var var = lookup(name);
@@ -423,53 +423,25 @@ private:
         std::visit([&](auto &&node) {
             using T = std::decay_t<decltype(node)>;
 
-
-            // Integer literal.
-            //
-            // Example:
-            //
-            // 123
-            //
-            // becomes:
-            //
-            // mov rbx, 123
+            // Integer literal
             if constexpr (std::is_same_v<T, NodeExprIntLit>) {
                 buffer += "    mov rbx, ";
-                buffer += node.int_lit.value.value();
+                buffer += node.value;
                 buffer += "\n";
             }
 
-
-            // Identifier.
-            //
-            // Example:
-            //
-            // x
-            //
-            // loads the stored value from memory.
+            // Identifier
             else if constexpr (std::is_same_v<T, NodeExprIdentifier>) {
-                std::string name =
-                        node.identifier.value.value();
-
+                std::string name = node.value;
 
                 Var var = lookup(name);
-
 
                 buffer += "    mov rbx, [rbp - ";
                 buffer += std::to_string(var.offset);
                 buffer += "]\n";
             }
 
-
-            // Binary expression.
-            //
-            // Example:
-            //
-            // a + b
-            //
-            // Calculates:
-            //
-            // left operator right
+            // Binary expression
             else if constexpr (std::is_same_v<T, BinaryExpr *>) {
                 if (node->op == "<" ||
                     node->op == ">" ||
@@ -484,7 +456,6 @@ private:
                     );
                 }
 
-
                 generate_expr(node->left, buffer);
 
                 push_temp(buffer, "rbx");
@@ -492,7 +463,6 @@ private:
                 generate_expr(node->right, buffer);
 
                 pop_temp(buffer, "rax");
-
 
                 if (node->op == "+") {
                     buffer += "    add rax, rbx\n";
@@ -513,8 +483,24 @@ private:
                     );
                 }
 
-
                 buffer += "    mov rbx, rax\n";
+            }
+
+            // Unary expression
+            else if constexpr (std::is_same_v<T, UnaryExpr *>) {
+                generate_expr(node->expr, buffer);
+
+                if (node->op == "-") {
+                    buffer += "    neg rbx\n";
+                } else if (node->op == "!") {
+                    buffer += "    cmp rbx, 0\n";
+                    buffer += "    sete al\n";
+                    buffer += "    movzx rbx, al\n";
+                } else {
+                    throw std::runtime_error(
+                        "Unknown unary operator: " + node->op
+                    );
+                }
             }
         }, expr->expr);
     }

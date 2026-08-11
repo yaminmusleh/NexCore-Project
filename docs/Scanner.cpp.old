@@ -448,31 +448,34 @@ Scanner::~Scanner() {
 void Scanner::Init() {
 	EOL    = '\n';
 	eofSym = 0;
-	maxT = 22;
-	noSym = 22;
+	maxT = 28;
+	noSym = 28;
 	int i;
-	for (i = 65; i <= 90; ++i) start.set(i, 20);
-	for (i = 97; i <= 122; ++i) start.set(i, 20);
-	for (i = 48; i <= 57; ++i) start.set(i, 21);
-	start.set(61, 22);
-	start.set(33, 2);
-	start.set(60, 4);
-	start.set(62, 6);
-	start.set(59, 8);
-	start.set(40, 9);
-	start.set(41, 10);
-	start.set(123, 11);
-	start.set(125, 12);
-	start.set(43, 13);
-	start.set(45, 14);
-	start.set(42, 15);
-	start.set(47, 16);
-	start.set(37, 17);
-	start.set(38, 18);
-	start.set(124, 19);
+	for (i = 65; i <= 90; ++i) start.set(i, 17);
+	for (i = 97; i <= 122; ++i) start.set(i, 17);
+	for (i = 48; i <= 57; ++i) start.set(i, 18);
+	start.set(61, 19);
+	start.set(33, 20);
+	start.set(60, 21);
+	start.set(62, 22);
+	start.set(59, 5);
+	start.set(40, 6);
+	start.set(41, 7);
+	start.set(123, 8);
+	start.set(125, 9);
+	start.set(43, 10);
+	start.set(45, 11);
+	start.set(42, 12);
+	start.set(47, 13);
+	start.set(37, 14);
+	start.set(38, 15);
+	start.set(124, 16);
 		start.set(Buffer::EoF, -1);
-	keywords.set(L"set", 20);
-	keywords.set(L"exit", 21);
+	keywords.set(L"set", 23);
+	keywords.set(L"exit", 24);
+	keywords.set(L"iff", 25);
+	keywords.set(L"otherwise", 26);
+	keywords.set(L"whilst", 27);
 
 
 	tvalLength = 128;
@@ -538,6 +541,52 @@ void Scanner::AddCh() {
 }
 
 
+bool Scanner::Comment0() {
+	int level = 1, pos0 = pos, line0 = line, col0 = col, charPos0 = charPos;
+	NextCh();
+	if (ch == L'*') {
+		NextCh();
+		for(;;) {
+			if (ch == L'*') {
+				NextCh();
+				if (ch == L';') {
+					level--;
+					if (level == 0) { oldEols = line - line0; NextCh(); return true; }
+					NextCh();
+				}
+			} else if (ch == L';') {
+				NextCh();
+				if (ch == L'*') {
+					level++; NextCh();
+				}
+			} else if (ch == buffer->EoF) return false;
+			else NextCh();
+		}
+	} else {
+		buffer->SetPos(pos0); NextCh(); line = line0; col = col0; charPos = charPos0;
+	}
+	return false;
+}
+
+bool Scanner::Comment1() {
+	int level = 1, pos0 = pos, line0 = line, col0 = col, charPos0 = charPos;
+	NextCh();
+	if (ch == L';') {
+		NextCh();
+		for(;;) {
+			if (ch == 10) {
+				level--;
+				if (level == 0) { oldEols = line - line0; NextCh(); return true; }
+				NextCh();
+			} else if (ch == buffer->EoF) return false;
+			else NextCh();
+		}
+	} else {
+		buffer->SetPos(pos0); NextCh(); line = line0; col = col0; charPos = charPos0;
+	}
+	return false;
+}
+
 
 void Scanner::CreateHeapBlock() {
 	void* newHeap;
@@ -588,9 +637,9 @@ void Scanner::AppendVal(Token *t) {
 
 Token* Scanner::NextToken() {
 	while (ch == ' ' ||
-			(ch >= 9 && ch <= 10) || ch == 13
+			(ch >= 9 && ch <= 10) || ch == 13 || ch == L' '
 	) NextCh();
-
+	if ((ch == L';' && Comment0()) || (ch == L';' && Comment1())) return NextToken();
 	int recKind = noSym;
 	int recEnd = pos;
 	t = CreateToken();
@@ -612,61 +661,64 @@ Token* Scanner::NextToken() {
 			case_1:
 			{t->kind = 2; break;}
 		case 2:
-			if (ch == L'=') {AddCh(); goto case_3;}
-			else {goto case_0;}
+			case_2:
+			{t->kind = 3; break;}
 		case 3:
 			case_3:
-			{t->kind = 3; break;}
-		case 4:
-			if (ch == L'=') {AddCh(); goto case_5;}
-			else {goto case_0;}
-		case 5:
-			case_5:
-			{t->kind = 4; break;}
-		case 6:
-			if (ch == L'=') {AddCh(); goto case_7;}
-			else {goto case_0;}
-		case 7:
-			case_7:
 			{t->kind = 5; break;}
-		case 8:
-			{t->kind = 6; break;}
-		case 9:
+		case 4:
+			case_4:
 			{t->kind = 7; break;}
-		case 10:
+		case 5:
 			{t->kind = 8; break;}
-		case 11:
+		case 6:
 			{t->kind = 9; break;}
-		case 12:
+		case 7:
 			{t->kind = 10; break;}
-		case 13:
+		case 8:
 			{t->kind = 11; break;}
-		case 14:
+		case 9:
 			{t->kind = 12; break;}
-		case 15:
+		case 10:
 			{t->kind = 13; break;}
-		case 16:
+		case 11:
 			{t->kind = 14; break;}
-		case 17:
+		case 12:
 			{t->kind = 15; break;}
-		case 18:
+		case 13:
 			{t->kind = 16; break;}
-		case 19:
+		case 14:
 			{t->kind = 17; break;}
-		case 20:
-			case_20:
-			recEnd = pos; recKind = 18;
-			if ((ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z')) {AddCh(); goto case_20;}
-			else {t->kind = 18; wchar_t *literal = coco_string_create(tval, 0, tlen); t->kind = keywords.get(literal, t->kind); coco_string_delete(literal); break;}
-		case 21:
-			case_21:
-			recEnd = pos; recKind = 19;
-			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_21;}
-			else {t->kind = 19; break;}
-		case 22:
+		case 15:
+			{t->kind = 18; break;}
+		case 16:
+			{t->kind = 19; break;}
+		case 17:
+			case_17:
+			recEnd = pos; recKind = 21;
+			if ((ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z')) {AddCh(); goto case_17;}
+			else {t->kind = 21; wchar_t *literal = coco_string_create(tval, 0, tlen); t->kind = keywords.get(literal, t->kind); coco_string_delete(literal); break;}
+		case 18:
+			case_18:
+			recEnd = pos; recKind = 22;
+			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_18;}
+			else {t->kind = 22; break;}
+		case 19:
 			recEnd = pos; recKind = 1;
 			if (ch == L'=') {AddCh(); goto case_1;}
 			else {t->kind = 1; break;}
+		case 20:
+			recEnd = pos; recKind = 20;
+			if (ch == L'=') {AddCh(); goto case_2;}
+			else {t->kind = 20; break;}
+		case 21:
+			recEnd = pos; recKind = 4;
+			if (ch == L'=') {AddCh(); goto case_3;}
+			else {t->kind = 4; break;}
+		case 22:
+			recEnd = pos; recKind = 6;
+			if (ch == L'=') {AddCh(); goto case_4;}
+			else {t->kind = 6; break;}
 
 	}
 	AppendVal(t);
