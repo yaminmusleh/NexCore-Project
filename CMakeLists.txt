@@ -8,4 +8,6 @@ add_executable(nexc src/main.cpp
         src/tokenization.h
         src/parser.h
         src/generation.h
-        src/arena.h) #what to execute
+        src/arena.h
+        docs/Parser.cpp
+        docs/Scanner.cpp) #what to execute

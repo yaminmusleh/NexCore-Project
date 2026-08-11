@@ -1,0 +1,24 @@
+COMPILER Nex
+
+CHARACTERS
+    letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
+    digit  = "0123456789".
+
+TOKENS
+    identifier = letter { letter | digit }.
+    int_lit    = digit { digit }.
+
+IGNORE '\r' + '\n' + '\t'
+
+PRODUCTIONS
+
+Nex = 
+    ( "exit" 
+    | "set" 
+    | "iff" 
+    | "otherwise" 
+    | "whilst" 
+    )
+    .
+
+END Nex.
