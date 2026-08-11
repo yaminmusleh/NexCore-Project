@@ -1,8 +1,9 @@
 #include "parser.h"
-
 #include <cctype>
 #include <new>
 #include <stdexcept>
+
+//Dear traveler, Good luck trying to decode this ancient-looking writing :) - Yamen Mosleh
 
 // ============================================================
 // Constructor
