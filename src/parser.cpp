@@ -759,7 +759,7 @@ NodeScope* Parser::parse_scope() {
 // ============================================================
 
 NodeStmnt* Parser::parse_if() {
-    expect_keyword("if");
+    expect_keyword("iff");
 
     expect('(');
 
@@ -779,10 +779,10 @@ NodeStmnt* Parser::parse_if() {
 
     skip_whitespace();
 
-    if (match_keyword("else")) {
+    if (match_keyword("otherwise")) {
         skip_whitespace();
 
-        if (match_keyword("if")) {
+        if (match_keyword("iff")) {
             // We consumed "if", so parse the remainder
             // of an if statement manually.
 
@@ -804,10 +804,10 @@ NodeStmnt* Parser::parse_if() {
 
             skip_whitespace();
 
-            if (match_keyword("else")) {
+            if (match_keyword("otherwise")) {
                 skip_whitespace();
 
-                if (match_keyword("if")) {
+                if (match_keyword("iff")) {
                     // Build the nested else-if recursively
                     // by parsing the rest manually.
 
@@ -961,7 +961,7 @@ NodeStmnt* Parser::parse_statement() {
         return statement;
     }
 
-    if (match_keyword("if")) {
+    if (match_keyword("iff")) {
         expect('(');
 
         NodeExpr* condition =
@@ -980,10 +980,10 @@ NodeStmnt* Parser::parse_statement() {
 
         skip_whitespace();
 
-        if (match_keyword("else")) {
+        if (match_keyword("otherwise")) {
             skip_whitespace();
 
-            if (match_keyword("if")) {
+            if (match_keyword("iff")) {
                 expect('(');
 
                 NodeExpr* else_condition =
@@ -1008,7 +1008,7 @@ NodeStmnt* Parser::parse_statement() {
                 // Handle one more else branch.
                 skip_whitespace();
 
-                if (match_keyword("else")) {
+                if (match_keyword("otherwise")) {
                     else_if->else_scope =
                         parse_scope();
                 }

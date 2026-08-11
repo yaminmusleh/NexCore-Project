@@ -3,15 +3,15 @@ set y = 3;
 set result = 0;
 
 whilst (x < 5) {
-    if (!(x == 0)) {
+    iff (!(x == 0)) {
         result = result + (x * x) % 7;
-    } else {
+    } otherwise {
         result = result + 20;
     }
 
-    if (x < -3) {
+    iff (x < -3) {
         result = result + 4;
-    } else {
+    } otherwise {
         result = result - 2;
     }
 
@@ -21,9 +21,9 @@ whilst (x < 5) {
 set quotient = result / y;
 set remainder = result % y;
 
-if (remainder == 0) {
+iff (remainder == 0) {
     result = quotient * 2;
-} else {
+} otherwise {
     result = quotient + remainder;
 }
 
