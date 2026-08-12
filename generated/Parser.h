@@ -33,6 +33,7 @@ Coco/R itself) does not fall under the GNU General Public License.
 
 
 #include "Scanner.h"
+#include "../src/parser_support.h"
 
 
 
@@ -103,20 +104,22 @@ public:
 	void SemErr(const wchar_t* msg);
 
 	void Nex();
-	void Statement();
-	void SetStmt();
-	void ExitStmt();
-	void IfStmt();
-	void WhileStmt();
-	void BlockStmt();
-	void AssignStmt();
-	void Expression();
-	void AndExpr();
-	void EqualityExpr();
-	void AddExpr();
-	void MultExpr();
-	void UnaryExpr();
-	void PrimaryExpr();
+	void Statement(NodeStmnt *&statement);
+	void SetStmt(NodeStmnt *&statement);
+	void ExitStmt(NodeStmnt *&statement);
+	void IfStmt(NodeStmnt *&statement);
+	void WhileStmt(NodeStmnt *&statement);
+	void BlockStmt(NodeStmnt *&statement);
+	void AssignStmt(NodeStmnt *&statement);
+	void Expression(NodeExpr *&expr);
+	void OrExpr(NodeExpr *&left);
+	void AndExpr(NodeExpr *&left);
+	void EqualityExpr(NodeExpr *&left);
+	void RelationalExpr(NodeExpr *&left);
+	void AddExpr(NodeExpr *&left);
+	void MultExpr(NodeExpr *&left);
+	void UnaryExpr(NodeExpr *&expr);
+	void PrimaryExpr(NodeExpr *&expr);
 
 	void Parse();
 

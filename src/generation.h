@@ -326,7 +326,7 @@ private:
 
 
         // true && true
-        if (binary->op == "&") {
+        if (binary->op == "&&") {
             std::string next =
                     ".L" + std::to_string(m_labelCount++);
 
@@ -347,7 +347,7 @@ private:
 
 
         // true || true
-        if (binary->op == "|") {
+        if (binary->op == "||") {
             std::string next =
                     ".L" + std::to_string(m_labelCount++);
 
@@ -449,8 +449,8 @@ private:
                     node->op == ">=" ||
                     node->op == "==" ||
                     node->op == "!=" ||
-                    node->op == "&" ||
-                    node->op == "|") {
+                    node->op == "&&" ||
+                    node->op == "||") {
                     throw std::runtime_error(
                         "Condition used as expression"
                     );
