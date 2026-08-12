@@ -1,0 +1,11 @@
+{
+  "name": "NexCore Icons",
+  "fileExtensions": {
+    "nex": "_nex"
+  },
+  "iconDefinitions": {
+    "_nex": {
+      "iconPath": "./icons/nex.svg"
+    }
+  }
+}
