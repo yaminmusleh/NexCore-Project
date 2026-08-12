@@ -33,6 +33,7 @@ Coco/R itself) does not fall under the GNU General Public License.
 
 
 #include "Scanner.h"
+#include "../src/parser_support.h"
 
 
 
@@ -96,284 +97,6 @@ public:
 	Token *t;			// last recognized token
 	Token *la;			// lookahead token
 
-(. 
-#include "../src/ast.h"
-#include "../src/arena.h"
-
-#include <string>
-#include <stdexcept>
-#include <cwchar>
-#include <utility>
-
-//
-// The generated Coco/R parser will build the AST through these.
-//
-// main() will set:
-//
-//     arena = &myArena;
-//
-// before calling:
-//
-//     parser.Nex();
-//
-
-ArenaAllocator *arena = nullptr;
-NodeProgram program;
-
-static std::string token_string(Token *token)
-{
-    if (!token || !token->val)
-        return {};
-
-    std::wstring wide(token->val);
-
-    return std::string(
-        wide.begin(),
-        wide.end()
-    );
-}
-
-static NodeExpr *make_int_expr(const std::string &value)
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    NodeExpr *expr = arena->alloc<NodeExpr>();
-
-    if (!expr)
-        throw std::bad_alloc{};
-
-    NodeExprIntLit node{
-        value
-    };
-
-    return new(expr) NodeExpr{
-        node
-    };
-}
-
-static NodeExpr *make_identifier_expr(const std::string &value)
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    NodeExpr *expr = arena->alloc<NodeExpr>();
-
-    if (!expr)
-        throw std::bad_alloc{};
-
-    NodeExprIdentifier node{
-        value
-    };
-
-    return new(expr) NodeExpr{
-        node
-    };
-}
-
-static NodeExpr *make_binary_expr(
-    NodeExpr *left,
-    const std::string &op,
-    NodeExpr *right
-)
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    BinaryExpr *binary = arena->alloc<BinaryExpr>();
-
-    if (!binary)
-        throw std::bad_alloc{};
-
-    new(binary) BinaryExpr{
-        left,
-        op,
-        right
-    };
-
-    NodeExpr *expr = arena->alloc<NodeExpr>();
-
-    if (!expr)
-        throw std::bad_alloc{};
-
-    return new(expr) NodeExpr{
-        binary
-    };
-}
-
-static NodeExpr *make_unary_expr(
-    const std::string &op,
-    NodeExpr *operand
-)
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    UnaryExpr *unary = arena->alloc<UnaryExpr>();
-
-    if (!unary)
-        throw std::bad_alloc{};
-
-    new(unary) UnaryExpr{
-        op,
-        operand
-    };
-
-    NodeExpr *expr = arena->alloc<NodeExpr>();
-
-    if (!expr)
-        throw std::bad_alloc{};
-
-    return new(expr) NodeExpr{
-        unary
-    };
-}
-
-static NodeScope *make_scope()
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    NodeScope *scope = arena->alloc<NodeScope>();
-
-    if (!scope)
-        throw std::bad_alloc{};
-
-    return new(scope) NodeScope{};
-}
-
-static NodeStmnt *make_statement()
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    NodeStmnt *statement = arena->alloc<NodeStmnt>();
-
-    if (!statement)
-        throw std::bad_alloc{};
-
-    return statement;
-}
-
-static NodeStmnt *make_let(
-    const std::string &identifier,
-    NodeExpr *expr
-)
-{
-    NodeStmnt *statement = make_statement();
-
-    return new(statement) NodeStmnt{
-        NodeStmntLet{
-            identifier,
-            expr
-        }
-    };
-}
-
-static NodeStmnt *make_assign(
-    const std::string &identifier,
-    NodeExpr *expr
-)
-{
-    NodeStmnt *statement = make_statement();
-
-    return new(statement) NodeStmnt{
-        NodeStmntAssign{
-            identifier,
-            expr
-        }
-    };
-}
-
-static NodeStmnt *make_exit(NodeExpr *expr)
-{
-    NodeStmnt *statement = make_statement();
-
-    return new(statement) NodeStmnt{
-        NodeStmntExit{
-            expr
-        }
-    };
-}
-
-static NodeStmnt *make_scope_statement(NodeScope *scope)
-{
-    NodeStmnt *statement = make_statement();
-
-    return new(statement) NodeStmnt{
-        scope
-    };
-}
-
-static NodeStmnt *make_if(
-    NodeExpr *condition,
-    NodeScope *scope,
-    NodeScope *else_scope,
-    NodeStmntIf *else_if
-)
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    NodeStmntIf *if_statement =
-        arena->alloc<NodeStmntIf>();
-
-    if (!if_statement)
-        throw std::bad_alloc{};
-
-    new(if_statement) NodeStmntIf{
-        condition,
-        scope,
-        else_scope,
-        else_if
-    };
-
-    NodeStmnt *statement = make_statement();
-
-    return new(statement) NodeStmnt{
-        if_statement
-    };
-}
-
-static NodeStmntIf *get_if_statement(NodeStmnt *statement)
-{
-    if (!statement)
-        throw std::runtime_error(
-            "Expected if statement"
-        );
-
-    return std::get<NodeStmntIf *>(
-        statement->stmnt
-    );
-}
-
-static NodeStmnt *make_while(
-    NodeExpr *condition,
-    NodeScope *scope
-)
-{
-    if (!arena)
-        throw std::runtime_error("Nex parser arena is not initialized");
-
-    NodeStmntWhile *while_statement =
-        arena->alloc<NodeStmntWhile>();
-
-    if (!while_statement)
-        throw std::bad_alloc{};
-
-    new(while_statement) NodeStmntWhile{
-        condition,
-        scope
-    };
-
-    NodeStmnt *statement = make_statement();
-
-    return new(statement) NodeStmnt{
-        while_statement
-    };
-}
-.)
-
 
 
 	Parser(Scanner *scanner);
@@ -381,20 +104,22 @@ static NodeStmnt *make_while(
 	void SemErr(const wchar_t* msg);
 
 	void Nex();
-	void Statement(out NodeStmnt *statement);
-	void SetStmt(out NodeStmnt *statement);
-	void ExitStmt(out NodeStmnt *statement);
-	void IfStmt(out NodeStmnt *statement);
-	void WhileStmt(out NodeStmnt *statement);
-	void BlockStmt(out NodeStmnt *statement);
-	void AssignStmt(out NodeStmnt *statement);
-	void Expression(out NodeExpr *expr);
-	void AndExpr(out NodeExpr *expr);
-	void EqualityExpr(out NodeExpr *expr);
-	void AddExpr(out NodeExpr *expr);
-	void MultExpr(out NodeExpr *expr);
-	void UnaryExpr(out NodeExpr *expr);
-	void PrimaryExpr(out NodeExpr *expr);
+	void Statement(NodeStmnt *&statement);
+	void SetStmt(NodeStmnt *&statement);
+	void ExitStmt(NodeStmnt *&statement);
+	void IfStmt(NodeStmnt *&statement);
+	void WhileStmt(NodeStmnt *&statement);
+	void BlockStmt(NodeStmnt *&statement);
+	void AssignStmt(NodeStmnt *&statement);
+	void Expression(NodeExpr *&expr);
+	void OrExpr(NodeExpr *&left);
+	void AndExpr(NodeExpr *&left);
+	void EqualityExpr(NodeExpr *&left);
+	void RelationalExpr(NodeExpr *&left);
+	void AddExpr(NodeExpr *&left);
+	void MultExpr(NodeExpr *&left);
+	void UnaryExpr(NodeExpr *&expr);
+	void PrimaryExpr(NodeExpr *&expr);
 
 	void Parse();
 

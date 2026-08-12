@@ -1,41 +1,51 @@
 #include <cstdlib>
 #include <fstream>
 #include <iostream>
-#include <iterator>
 #include <string>
-#include <utility>
 #include "arena.h"
 #include "ast.h"
-#include "parser.h"
 #include "generation.h"
+#include "Parser.h"
+#include "Scanner.h"
 
-int main(int argc, char *argv[]) {
+extern ArenaAllocator *arena;
+extern NodeProgram program;
+
+int main(int argc, char *argv[])
+{
     if (argc != 2) {
         std::cerr << "Incorrect usage.\n";
         std::cerr << "Correct usage: nexcore <input.nex>\n";
         return EXIT_FAILURE;
     }
 
-    ArenaAllocator arena(1024 * 1024);
+    ArenaAllocator myArena(1024 * 1024);
+    arena = &myArena;
 
-    std::string filename = argv[1];
-
-    std::ifstream input(filename);
+    FILE *input = fopen(argv[1], "rb");
 
     if (!input) {
-        std::cerr << "Failed to open " << filename << "\n";
+        std::cerr << "Failed to open " << argv[1] << "\n";
         return EXIT_FAILURE;
     }
 
-    std::string source(
-        (std::istreambuf_iterator<char>(input)),
-        std::istreambuf_iterator<char>()
-    );
+    Scanner scanner(input);
 
-    Parser parser(source, arena);
-    NodeProgram program = parser.parse();
+    Parser parser(&scanner);
+
+
+
+    parser.Parse();
+
+
+
+    fclose(input);
+
 
     Generator generator(std::move(program));
+
+
+    std::string assembly = generator.generate();
 
     std::ofstream output("out.asm");
 
@@ -44,11 +54,10 @@ int main(int argc, char *argv[]) {
         return EXIT_FAILURE;
     }
 
-    output << generator.generate();
-
+    output << assembly;
     output.close();
 
-    if (system("nasm -f elf64 out.asm") != 0) {
+    if (system("nasm -f elf64 out.asm -o out.o") != 0) {
         std::cerr << "NASM failed.\n";
         return EXIT_FAILURE;
     }
