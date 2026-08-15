@@ -68,6 +68,7 @@ Statement<NodeStmnt *&statement>
       SetStmt<statement>
     | ExitStmt<statement>
     | IfStmt<statement>
+    | ForStmt<statement>
     | WhileStmt<statement>
     | BlockStmt<statement>
     | AssignStmt<statement>
@@ -180,6 +181,90 @@ IfStmt<NodeStmnt *&statement>
                 else_scope,
                 else_if
             );
+    .)
+.
+
+ForStmt<NodeStmnt *&statement>
+(.
+    NodeStmnt *initialisation = nullptr;
+    NodeExpr *condition = nullptr;
+    NodeStmnt *increment = nullptr;
+
+    NodeStmnt *body_statement = nullptr;
+    NodeScope *scope = nullptr;
+.)
+=
+    "for"
+    open_paren
+    ForInit<initialisation>
+    semi
+
+    Expression<condition>
+    semi
+
+    ForIncrement<increment>
+    close_paren
+
+    BlockStmt<body_statement>
+    (.
+       scope =
+         std::get<NodeScope *>(
+            body_statement->stmnt
+         );
+       statement =
+          make_for(
+            initialisation,
+            condition,
+            increment,
+            scope
+          )
+    .)
+.
+
+ForInit<NodeStmnt *&statement>
+(.
+      std::string name;
+      NodeExpr *expr = nullptr;
+.)
+=
+       "set"
+      identifier
+      (.
+          name = token_string(t);
+      .)
+      assign
+      Expression<expr>
+      (.
+          statement = make_let(name, expr);
+      .)
+      
+    |
+       identifier
+      (.
+          name = token_string(t);
+      .)
+      assign
+      Expression<expr>
+      (.
+          statement = make_assign(name, expr);
+      .)
+
+.
+
+ForIncrement<NodeStmnt *&statement>
+(.
+    std::string name;
+    NodeExpr *expr = nullptr;
+.)
+=
+    identifier
+    (.
+        name = token_string(t);
+    .)
+    assign
+    Expression<expr>
+    (.
+        statement = make_assign(name, expr);
     .)
 .
 
