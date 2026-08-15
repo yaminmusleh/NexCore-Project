@@ -259,3 +259,34 @@ NodeStmnt *make_while(
         while_statement
     };
 }
+NodeStmnt *make_for(
+    NodeStmnt *init,
+    NodeExpr *condition,
+    NodeStmnt *increment,
+    NodeScope *scope
+) {
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized"
+        );
+
+    NodeStmntFor *for_statement =
+            arena->alloc<NodeStmntFor>();
+
+    if (!for_statement)
+        throw std::bad_alloc{};
+
+    new(for_statement) NodeStmntFor{
+        init,
+        condition,
+        increment,
+        scope
+    };
+
+    NodeStmnt *statement =
+            make_statement();
+
+    return new(statement) NodeStmnt{
+        for_statement
+    };
+}

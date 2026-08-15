@@ -217,7 +217,7 @@ ForStmt<NodeStmnt *&statement>
             condition,
             increment,
             scope
-          )
+          );
     .)
 .
 

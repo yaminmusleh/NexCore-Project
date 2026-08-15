@@ -27,13 +27,11 @@ NodeExpr *make_identifier_expr(const std::string &value);
 NodeExpr *make_binary_expr(
     NodeExpr *left,
     const std::string &op,
-    NodeExpr *right
-);
+    NodeExpr *right);
 
 NodeExpr *make_unary_expr(
     const std::string &op,
-    NodeExpr *operand
-);
+    NodeExpr *operand);
 
 NodeScope *make_scope();
 
@@ -41,13 +39,11 @@ NodeStmnt *make_statement();
 
 NodeStmnt *make_let(
     const std::string &identifier,
-    NodeExpr *expr
-);
+    NodeExpr *expr);
 
 NodeStmnt *make_assign(
     const std::string &identifier,
-    NodeExpr *expr
-);
+    NodeExpr *expr);
 
 NodeStmnt *make_exit(NodeExpr *expr);
 
@@ -57,12 +53,16 @@ NodeStmnt *make_if(
     NodeExpr *condition,
     NodeScope *scope,
     NodeScope *else_scope,
-    NodeStmntIf *else_if
-);
+    NodeStmntIf *else_if);
+
+NodeStmnt *make_for(
+    NodeStmnt *init,
+    NodeExpr *condition,
+    NodeStmnt *increment,
+    NodeScope *scope);
 
 NodeStmntIf *get_if_statement(NodeStmnt *statement);
 
 NodeStmnt *make_while(
     NodeExpr *condition,
-    NodeScope *scope
-);
+    NodeScope *scope);

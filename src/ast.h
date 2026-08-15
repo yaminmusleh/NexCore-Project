@@ -5,46 +5,54 @@
 #include <vector>
 #include "arena.h"
 
-struct NodeExprIntLit {
+struct NodeExprIntLit
+{
     std::string value;
 };
 
-struct NodeExprIdentifier {
+struct NodeExprIdentifier
+{
     std::string value;
 };
 
 struct NodeExpr;
 
-struct BinaryExpr {
+struct BinaryExpr
+{
     NodeExpr *left;
     std::string op;
     NodeExpr *right = nullptr;
 };
 
-struct UnaryExpr {
+struct UnaryExpr
+{
     std::string op;
     NodeExpr *expr;
 };
 
-struct NodeExpr {
+struct NodeExpr
+{
     std::variant<
         NodeExprIntLit,
         NodeExprIdentifier,
         BinaryExpr *,
-        UnaryExpr *
-    > expr;
+        UnaryExpr *>
+        expr;
 };
 
-struct NodeStmntExit {
+struct NodeStmntExit
+{
     NodeExpr *expr;
 };
 
-struct NodeStmntLet {
+struct NodeStmntLet
+{
     std::string identifier;
     NodeExpr *expr;
 };
 
-struct NodeStmntAssign {
+struct NodeStmntAssign
+{
     std::string identifier;
     NodeExpr *expr;
 };
@@ -54,7 +62,8 @@ struct NodeStmntIf;
 struct NodeStmntWhile;
 struct NodeStmntFor;
 
-struct NodeStmnt {
+struct NodeStmnt
+{
     std::variant<
         NodeStmntExit,
         NodeStmntIf *,
@@ -62,33 +71,38 @@ struct NodeStmnt {
         NodeScope *,
         NodeStmntAssign,
         NodeStmntWhile *,
-        NodeStmntFor *
-    > stmnt;
+        NodeStmntFor *>
+        stmnt;
 };
 
-struct NodeScope {
+struct NodeScope
+{
     std::vector<NodeStmnt *> statements;
 };
 
-struct NodeStmntIf {
+struct NodeStmntIf
+{
     NodeExpr *condition;
     NodeScope *scope;
     NodeScope *else_scope = nullptr;
     NodeStmntIf *else_if = nullptr;
 };
 
-struct NodeStmntWhile {
+struct NodeStmntWhile
+{
     NodeExpr *condition;
     NodeScope *scope;
 };
 
-struct NodeStmntFor {
-    NodeStmnt *init;
-    NodeExpr *condition;
-    NodeStmnt *increment;
-    NodeScope *scope;
+struct NodeStmntFor
+{
+    NodeStmnt *init = nullptr;
+    NodeExpr *condition = nullptr;
+    NodeStmnt *increment = nullptr;
+    NodeScope *scope = nullptr;
 };
 
-struct NodeProgram {
+struct NodeProgram
+{
     std::vector<NodeStmnt *> statements;
 };

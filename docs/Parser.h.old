@@ -108,10 +108,13 @@ public:
 	void SetStmt(NodeStmnt *&statement);
 	void ExitStmt(NodeStmnt *&statement);
 	void IfStmt(NodeStmnt *&statement);
+	void ForStmt(NodeStmnt *&statement);
 	void WhileStmt(NodeStmnt *&statement);
 	void BlockStmt(NodeStmnt *&statement);
 	void AssignStmt(NodeStmnt *&statement);
 	void Expression(NodeExpr *&expr);
+	void ForInit(NodeStmnt *&statement);
+	void ForIncrement(NodeStmnt *&statement);
 	void OrExpr(NodeExpr *&left);
 	void AndExpr(NodeExpr *&left);
 	void EqualityExpr(NodeExpr *&left);
