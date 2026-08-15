@@ -52,6 +52,7 @@ struct NodeStmntAssign {
 struct NodeScope;
 struct NodeStmntIf;
 struct NodeStmntWhile;
+struct NodeStmntFor;
 
 struct NodeStmnt {
     std::variant<
@@ -60,7 +61,8 @@ struct NodeStmnt {
         NodeStmntLet,
         NodeScope *,
         NodeStmntAssign,
-        NodeStmntWhile *
+        NodeStmntWhile *,
+        NodeStmntFor *
     > stmnt;
 };
 
@@ -77,6 +79,13 @@ struct NodeStmntIf {
 
 struct NodeStmntWhile {
     NodeExpr *condition;
+    NodeScope *scope;
+};
+
+struct NodeStmntFor {
+    NodeStmnt *init;
+    NodeExpr *condition;
+    NodeStmnt *increment;
     NodeScope *scope;
 };
 

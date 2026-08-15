@@ -1,1 +1,7 @@
-exit(4);
+set x = 0;
+
+for (set i = 0; i < 5; i = i + 1) {
+    x = x + i;
+}
+
+exit(x);
