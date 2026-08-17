@@ -10,6 +10,11 @@ struct NodeExprIntLit
     std::string value;
 };
 
+struct NodeExprStringLit
+{
+    std::string value;
+};
+
 struct NodeExprIdentifier
 {
     std::string value;
@@ -35,6 +40,7 @@ struct NodeExpr
     std::variant<
         NodeExprIntLit,
         NodeExprIdentifier,
+        NodeExprStringLit,
         BinaryExpr *,
         UnaryExpr *>
         expr;

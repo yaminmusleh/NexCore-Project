@@ -1,12 +1,2 @@
-set x = 20;
-set total = 0;
-
-for (set i = 0; i < 3 || x == 20; i = i + 1) {
-    total = total + 1;
-
-    iff (i == 5) {
-        exit(total);
-    }
-}
-
-exit(total);
+set x = "hello";
+exit(x);

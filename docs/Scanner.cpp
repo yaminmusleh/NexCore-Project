@@ -448,16 +448,16 @@ Scanner::~Scanner() {
 void Scanner::Init() {
 	EOL    = '\n';
 	eofSym = 0;
-	maxT = 29;
-	noSym = 29;
+	maxT = 30;
+	noSym = 30;
 	int i;
 	for (i = 65; i <= 90; ++i) start.set(i, 19);
 	for (i = 97; i <= 122; ++i) start.set(i, 19);
 	for (i = 48; i <= 57; ++i) start.set(i, 20);
-	start.set(61, 21);
-	start.set(33, 22);
-	start.set(60, 23);
-	start.set(62, 24);
+	start.set(61, 23);
+	start.set(33, 24);
+	start.set(60, 25);
+	start.set(62, 26);
 	start.set(59, 5);
 	start.set(40, 6);
 	start.set(41, 7);
@@ -470,13 +470,14 @@ void Scanner::Init() {
 	start.set(37, 14);
 	start.set(38, 15);
 	start.set(124, 17);
+	start.set(34, 21);
 		start.set(Buffer::EoF, -1);
-	keywords.set(L"set", 23);
-	keywords.set(L"exit", 24);
-	keywords.set(L"iff", 25);
-	keywords.set(L"otherwise", 26);
-	keywords.set(L"for", 27);
-	keywords.set(L"whilst", 28);
+	keywords.set(L"set", 24);
+	keywords.set(L"exit", 25);
+	keywords.set(L"iff", 26);
+	keywords.set(L"otherwise", 27);
+	keywords.set(L"for", 28);
+	keywords.set(L"whilst", 29);
 
 
 	tvalLength = 128;
@@ -713,18 +714,26 @@ Token* Scanner::NextToken() {
 			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_20;}
 			else {t->kind = 22; break;}
 		case 21:
+			case_21:
+			if (ch <= 9 || (ch >= 11 && ch <= 12) || (ch >= 14 && ch <= L'!') || (ch >= L'#' && ch <= 65535)) {AddCh(); goto case_21;}
+			else if (ch == L'"') {AddCh(); goto case_22;}
+			else {goto case_0;}
+		case 22:
+			case_22:
+			{t->kind = 23; break;}
+		case 23:
 			recEnd = pos; recKind = 1;
 			if (ch == L'=') {AddCh(); goto case_1;}
 			else {t->kind = 1; break;}
-		case 22:
+		case 24:
 			recEnd = pos; recKind = 20;
 			if (ch == L'=') {AddCh(); goto case_2;}
 			else {t->kind = 20; break;}
-		case 23:
+		case 25:
 			recEnd = pos; recKind = 4;
 			if (ch == L'=') {AddCh(); goto case_3;}
 			else {t->kind = 4; break;}
-		case 24:
+		case 26:
 			recEnd = pos; recKind = 6;
 			if (ch == L'=') {AddCh(); goto case_4;}
 			else {t->kind = 6; break;}

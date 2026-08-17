@@ -5,6 +5,9 @@ CHARACTERS
     letter = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz".
     digit  = "0123456789".
 
+    stringChar =
+    ANY - '"' - '\r' - '\n'.
+
 
 TOKENS
 
@@ -34,6 +37,7 @@ TOKENS
 
     identifier    = letter { letter | digit }.
     int_lit       = digit { digit }.
+    string_lit    = '"' { stringChar } '"'.
 
 
 COMMENTS FROM "//" TO "\n"
@@ -571,6 +575,15 @@ PrimaryExpr<NodeExpr *&expr>
       (.
           expr =
               make_int_expr(
+                  token_string(t)
+              );
+      .)
+      |
+
+      string_lit
+      (.
+          expr =
+              make_string_expr(
                   token_string(t)
               );
       .)

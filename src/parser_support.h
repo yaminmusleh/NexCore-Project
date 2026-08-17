@@ -22,6 +22,7 @@ extern ArenaAllocator *arena;
 extern NodeProgram program;
 
 NodeExpr *make_int_expr(const std::string &value);
+NodeExpr *make_string_expr(const std::string &value);
 NodeExpr *make_identifier_expr(const std::string &value);
 
 NodeExpr *make_binary_expr(

@@ -5,126 +5,129 @@
 ArenaAllocator *arena = nullptr;
 NodeProgram program;
 
-NodeExpr *make_int_expr(const std::string &value) {
+NodeExpr *make_int_expr(const std::string &value)
+{
     if (!arena)
         throw std::runtime_error("Nex parser arena is not initialized");
 
-    NodeExpr *expr = arena->alloc<NodeExpr>(); //it makes a place in memory for that expression.
+    NodeExpr *expr = arena->alloc<NodeExpr>(); // it makes a place in memory for that expression.
 
     if (!expr)
         throw std::bad_alloc{};
 
-    return new(expr) NodeExpr{
-        NodeExprIntLit{value}
-    };
+    return new (expr) NodeExpr{
+        NodeExprIntLit{value}};
 }
-
-NodeExpr *make_identifier_expr(const std::string &value) {
+NodeExpr *make_string_expr(const std::string &value)
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    return new (expr) NodeExpr(
+        NodeExpr{NodeExprStringLit{value}});
+}
+
+NodeExpr *make_identifier_expr(const std::string &value)
+{
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized");
 
     NodeExpr *expr = arena->alloc<NodeExpr>();
 
     if (!expr)
         throw std::bad_alloc{};
 
-    return new(expr) NodeExpr{
-        NodeExprIdentifier{value}
-    };
+    return new (expr) NodeExpr{
+        NodeExprIdentifier{value}};
 }
-
 
 NodeExpr *make_binary_expr(
     NodeExpr *left,
     const std::string &op,
-    NodeExpr *right
-) {
+    NodeExpr *right)
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     BinaryExpr *binary =
-            arena->alloc<BinaryExpr>();
+        arena->alloc<BinaryExpr>();
 
     if (!binary)
         throw std::bad_alloc{};
 
-    new(binary) BinaryExpr{
+    new (binary) BinaryExpr{
         left,
         op,
-        right
-    };
+        right};
 
     NodeExpr *expr =
-            arena->alloc<NodeExpr>();
+        arena->alloc<NodeExpr>();
 
     if (!expr)
         throw std::bad_alloc{};
 
-    return new(expr) NodeExpr{
-        binary
-    };
+    return new (expr) NodeExpr{
+        binary};
 }
-
 
 NodeExpr *make_unary_expr(
     const std::string &op,
-    NodeExpr *operand
-) {
+    NodeExpr *operand)
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     UnaryExpr *unary =
-            arena->alloc<UnaryExpr>();
+        arena->alloc<UnaryExpr>();
 
     if (!unary)
         throw std::bad_alloc{};
 
-    new(unary) UnaryExpr{
+    new (unary) UnaryExpr{
         op,
-        operand
-    };
+        operand};
 
     NodeExpr *expr =
-            arena->alloc<NodeExpr>();
+        arena->alloc<NodeExpr>();
 
     if (!expr)
         throw std::bad_alloc{};
 
-    return new(expr) NodeExpr{
-        unary
-    };
+    return new (expr) NodeExpr{
+        unary};
 }
 
-NodeScope *make_scope() {
+NodeScope *make_scope()
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     NodeScope *scope =
-            arena->alloc<NodeScope>();
+        arena->alloc<NodeScope>();
 
     if (!scope)
         throw std::bad_alloc{};
 
-    return new(scope) NodeScope{};
+    return new (scope) NodeScope{};
 }
 
-
-NodeStmnt *make_statement() {
+NodeStmnt *make_statement()
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     NodeStmnt *statement =
-            arena->alloc<NodeStmnt>();
+        arena->alloc<NodeStmnt>();
 
     if (!statement)
         throw std::bad_alloc{};
@@ -132,161 +135,139 @@ NodeStmnt *make_statement() {
     return statement;
 }
 
-
 NodeStmnt *make_let(
     const std::string &identifier,
-    NodeExpr *expr
-) {
+    NodeExpr *expr)
+{
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
+    return new (statement) NodeStmnt{
         NodeStmntLet{
             identifier,
-            expr
-        }
-    };
+            expr}};
 }
-
 
 NodeStmnt *make_assign(
     const std::string &identifier,
-    NodeExpr *expr
-) {
+    NodeExpr *expr)
+{
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
+    return new (statement) NodeStmnt{
         NodeStmntAssign{
             identifier,
-            expr
-        }
-    };
+            expr}};
 }
 
-
-NodeStmnt *make_exit(NodeExpr *expr) {
+NodeStmnt *make_exit(NodeExpr *expr)
+{
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
+    return new (statement) NodeStmnt{
         NodeStmntExit{
-            expr
-        }
-    };
+            expr}};
 }
 
-
-NodeStmnt *make_scope_statement(NodeScope *scope) {
+NodeStmnt *make_scope_statement(NodeScope *scope)
+{
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
-        scope
-    };
+    return new (statement) NodeStmnt{
+        scope};
 }
-
 
 NodeStmnt *make_if(
     NodeExpr *condition,
     NodeScope *scope,
     NodeScope *else_scope,
-    NodeStmntIf *else_if
-) {
+    NodeStmntIf *else_if)
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     NodeStmntIf *if_statement =
-            arena->alloc<NodeStmntIf>();
+        arena->alloc<NodeStmntIf>();
 
     if (!if_statement)
         throw std::bad_alloc{};
 
-    new(if_statement) NodeStmntIf{
+    new (if_statement) NodeStmntIf{
         condition,
         scope,
         else_scope,
-        else_if
-    };
+        else_if};
 
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
-        if_statement
-    };
+    return new (statement) NodeStmnt{
+        if_statement};
 }
 
-
-NodeStmntIf *get_if_statement(NodeStmnt *statement) {
+NodeStmntIf *get_if_statement(NodeStmnt *statement)
+{
     if (!statement)
         throw std::runtime_error(
-            "Expected if statement"
-        );
+            "Expected if statement");
 
     return std::get<NodeStmntIf *>(
-        statement->stmnt
-    );
+        statement->stmnt);
 }
-
 
 NodeStmnt *make_while(
     NodeExpr *condition,
-    NodeScope *scope
-) {
+    NodeScope *scope)
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     NodeStmntWhile *while_statement =
-            arena->alloc<NodeStmntWhile>();
+        arena->alloc<NodeStmntWhile>();
 
     if (!while_statement)
         throw std::bad_alloc{};
 
-    new(while_statement) NodeStmntWhile{
+    new (while_statement) NodeStmntWhile{
         condition,
-        scope
-    };
+        scope};
 
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
-        while_statement
-    };
+    return new (statement) NodeStmnt{
+        while_statement};
 }
 NodeStmnt *make_for(
     NodeStmnt *init,
     NodeExpr *condition,
     NodeStmnt *increment,
-    NodeScope *scope
-) {
+    NodeScope *scope)
+{
     if (!arena)
         throw std::runtime_error(
-            "Nex parser arena is not initialized"
-        );
+            "Nex parser arena is not initialized");
 
     NodeStmntFor *for_statement =
-            arena->alloc<NodeStmntFor>();
+        arena->alloc<NodeStmntFor>();
 
     if (!for_statement)
         throw std::bad_alloc{};
 
-    new(for_statement) NodeStmntFor{
+    new (for_statement) NodeStmntFor{
         init,
         condition,
         increment,
-        scope
-    };
+        scope};
 
     NodeStmnt *statement =
-            make_statement();
+        make_statement();
 
-    return new(statement) NodeStmnt{
-        for_statement
-    };
+    return new (statement) NodeStmnt{
+        for_statement};
 }

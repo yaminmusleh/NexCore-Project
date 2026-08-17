@@ -75,7 +75,8 @@ private:
 		_logical_or=19,
 		_logical_not=20,
 		_identifier=21,
-		_int_lit=22
+		_int_lit=22,
+		_string_lit=23
 	};
 	int maxT;
 
