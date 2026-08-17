@@ -23,6 +23,8 @@ public:
         m_scopes.emplace_back();
         m_labelCount = 0;
         m_variableCount = 0;
+        m_strings.clear();
+        m_stringCount = 0;
 
         std::string buffer =
             "global _start\n"
@@ -52,7 +54,21 @@ public:
                 "    mov rdi, 0\n"
                 "    mov rax, 60\n"
                 "    syscall\n";
-            return buffer;
+        }
+        buffer +=
+            "\nsection .rodata\n";
+
+        for (const auto &str : m_strings)
+        {
+            buffer += str.label + " db ";
+
+            for (unsigned char c : str.value)
+            {
+                buffer += std::to_string(c);
+                buffer += ", ";
+            }
+
+            buffer += "0\n";
         }
 
         return buffer;
@@ -499,6 +515,20 @@ private:
                 buffer += std::to_string(var.offset);
                 buffer += "]\n";
             }
+            // String literal
+            else if constexpr (std::is_same_v<T, NodeExprStringLit>) {
+                std::cerr << "GENERATING STRING: [" << node.value << "]\n";
+                std::string label =
+                    ".L_string_" + std::to_string(m_stringCount++);
+            
+                m_strings.push_back({label, node.value});
+            
+                buffer += "    lea rbx, [rel ";
+                buffer += label;
+                buffer += "]\n";
+
+                
+            }              
 
             // Binary expression
             else if constexpr (std::is_same_v<T, BinaryExpr *>) {
@@ -597,4 +627,13 @@ private:
     // Counts how many variables exist.
     size_t m_variableCount = 0;
     size_t m_labelCount = 0;
+
+    struct StringLiteral
+    {
+        std::string label;
+        std::string value;
+    };
+
+    std::vector<StringLiteral> m_strings;
+    size_t m_stringCount = 0;
 };

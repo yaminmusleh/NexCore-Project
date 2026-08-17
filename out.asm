@@ -3,7 +3,6 @@ section .text
 _start:
     push rbp
     mov rbp, rsp
-    mov rbx, 0
     sub rsp, 8
     mov [rbp - 8], rbx
     mov rbx, [rbp - 8]
