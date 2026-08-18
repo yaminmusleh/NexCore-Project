@@ -18,6 +18,20 @@ NodeExpr *make_int_expr(const std::string &value)
     return new (expr) NodeExpr{
         NodeExprIntLit{value}};
 }
+
+NodeStmnt *make_print_statement(NodeExpr *expr)
+{
+    if (!arena)
+        throw std::runtime_error("Nex parser arena is not initialized");
+
+    NodeStmnt *print_expr = arena->alloc<NodeStmnt>();
+
+    if (!print_expr)
+        throw std::bad_alloc{};
+        
+    return new (print_expr) NodeStmnt{
+        NodeStmntPrint{expr}};
+}
 NodeExpr *make_string_expr(const std::string &value)
 {
     if (!arena)

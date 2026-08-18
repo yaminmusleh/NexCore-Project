@@ -69,13 +69,16 @@ Statement<NodeStmnt *&statement>
     statement = nullptr;
 .)
 =
+     
       SetStmt<statement>
     | ExitStmt<statement>
     | IfStmt<statement>
     | ForStmt<statement>
     | WhileStmt<statement>
     | BlockStmt<statement>
+    | PrintStmnt<statement>
     | AssignStmt<statement>
+    
 .
 
 
@@ -133,6 +136,20 @@ ExitStmt<NodeStmnt *&statement>
     .)
 .
 
+PrintStmnt<NodeStmnt *&statement>
+(.
+    NodeExpr *expr = nullptr;
+.)
+=
+    "print"
+    open_paren
+    Expression<expr>
+    close_paren
+    semi
+    (.
+       statement = make_print_statement(expr);
+    .)
+.
 
 IfStmt<NodeStmnt *&statement>
 (.

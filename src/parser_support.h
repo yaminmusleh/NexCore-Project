@@ -24,6 +24,7 @@ extern NodeProgram program;
 NodeExpr *make_int_expr(const std::string &value);
 NodeExpr *make_string_expr(const std::string &value);
 NodeExpr *make_identifier_expr(const std::string &value);
+NodeStmnt *make_print_statement(NodeExpr *expr);
 
 NodeExpr *make_binary_expr(
     NodeExpr *left,

@@ -63,6 +63,11 @@ struct NodeStmntAssign
     NodeExpr *expr;
 };
 
+struct NodeStmntPrint
+{
+    NodeExpr *expr;
+};
+
 struct NodeScope;
 struct NodeStmntIf;
 struct NodeStmntWhile;
@@ -76,9 +81,13 @@ struct NodeStmnt
         NodeStmntLet,
         NodeScope *,
         NodeStmntAssign,
+        NodeStmntPrint,
         NodeStmntWhile *,
         NodeStmntFor *>
         stmnt;
+    // Simple statement nodes are stored by value.
+    // Recursive/complex AST structures are stored by pointer
+    // so they can be separately allocated and referenced.
 };
 
 struct NodeScope

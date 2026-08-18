@@ -106,6 +106,7 @@ public:
 
 	void Nex();
 	void Statement(NodeStmnt *&statement);
+	void PrintStmnt(NodeStmnt *&statement);
 	void SetStmt(NodeStmnt *&statement);
 	void ExitStmt(NodeStmnt *&statement);
 	void IfStmt(NodeStmnt *&statement);
