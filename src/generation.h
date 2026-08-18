@@ -68,13 +68,115 @@ public:
                 buffer += ", ";
             }
 
+            // Newline character
+            buffer += "10, ";
+
+            // Null terminator
             buffer += "0\n";
         }
-
         return buffer;
     }
 
 private:
+    void generate_print_integer(std::string &buffer)
+    {
+        std::string loop =
+            ".L_print_loop_" + std::to_string(m_labelCount++);
+
+        std::string done =
+            ".L_print_done_" + std::to_string(m_labelCount++);
+
+        std::string negative =
+            ".L_print_negative_" + std::to_string(m_labelCount++);
+
+        std::string positive =
+            ".L_print_positive_" + std::to_string(m_labelCount++);
+
+        /*
+            rbx = integer to print
+
+            We need a temporary buffer.
+            Reserve 32 bytes on the stack.
+        */
+
+        buffer += "    sub rsp, 32\n";
+
+        // r12 = buffer end
+        buffer += "    lea r12, [rsp + 32]\n";
+
+        // rax = value
+        buffer += "    mov rax, rbx\n";
+
+        // Check negative.
+        buffer += "    cmp rax, 0\n";
+        buffer += "    jl " + negative + "\n";
+
+        // Positive / zero.
+        buffer += "    jmp " + positive + "\n";
+
+        // --------------------------------------------------
+        // Negative
+        // --------------------------------------------------
+        buffer += negative + ":\n";
+
+        buffer += "    neg rax\n";
+
+        // Put '-' at the end of the number.
+        buffer += "    dec r12\n";
+        buffer += "    mov byte [r12], '-'\n";
+
+        // Continue converting absolute value.
+        buffer += "    jmp " + loop + "\n";
+
+        // --------------------------------------------------
+        // Positive
+        // --------------------------------------------------
+        buffer += positive + ":\n";
+
+        // --------------------------------------------------
+        // Convert digits
+        // --------------------------------------------------
+        buffer += loop + ":\n";
+
+        buffer += "    xor rdx, rdx\n";
+        buffer += "    mov rcx, 10\n";
+        buffer += "    div rcx\n";
+
+        buffer += "    add dl, '0'\n";
+
+        buffer += "    dec r12\n";
+        buffer += "    mov [r12], dl\n";
+
+        buffer += "    test rax, rax\n";
+        buffer += "    jnz " + loop + "\n";
+
+        // --------------------------------------------------
+        // Write number
+        // --------------------------------------------------
+        buffer += "    mov rax, 1\n";
+        buffer += "    mov rdi, 1\n";
+        buffer += "    mov rsi, r12\n";
+
+        buffer += "    lea rdx, [rsp + 32]\n";
+        buffer += "    sub rdx, r12\n";
+
+        buffer += "    syscall\n";
+
+        // --------------------------------------------------
+        // Newline
+        // --------------------------------------------------
+        buffer += "    mov byte [rsp], 10\n";
+
+        buffer += "    mov rax, 1\n";
+        buffer += "    mov rdi, 1\n";
+        buffer += "    mov rsi, rsp\n";
+        buffer += "    mov rdx, 1\n";
+        buffer += "    syscall\n";
+
+        // Free buffer.
+        buffer += "    add rsp, 32\n";
+    }
+
     // Generates temporary values.
     //
     // Example:
@@ -245,77 +347,111 @@ private:
     {
         std::visit([&](auto &&stmt)
                    {
-            using T = std::decay_t<decltype(stmt)>; // stmt accepts all types of data.
+                       using T = std::decay_t<decltype(stmt)>; // stmt accepts all types of data.
 
+                       // exit(expression);
+                       if constexpr (std::is_same_v<T, NodeStmntExit>)
+                       {
+                           has_exit = true;
 
-            // exit(expression);
-            if constexpr (std::is_same_v<T, NodeStmntExit>) {
-                has_exit = true;
+                           generate_expr(stmt.expr, buffer);
 
-                generate_expr(stmt.expr, buffer);
+                           buffer +=
+                               "    mov rdi, rbx\n"
+                               "    mov rax, 60\n"
+                               "    syscall\n";
+                       }
 
-                buffer +=
-                        "    mov rdi, rbx\n"
-                        "    mov rax, 60\n"
-                        "    syscall\n";
-            }
+                       // set variable = expression;
+                       else if constexpr (std::is_same_v<T, NodeStmntLet>)
+                       {
+                           std::string name =
+                               stmt.identifier;
 
+                           // Generate the expression first.
+                           // The result will be placed inside rbx.
+                           generate_expr(stmt.expr, buffer);
 
-            // set variable = expression;
-            else if constexpr (std::is_same_v<T, NodeStmntLet>) {
-                std::string name =
-                        stmt.identifier;
+                           // Reserve 8 bytes on the stack
+                           // for this variable.
+                           buffer += "    sub rsp, 8\n";
 
+                           // Store the variable at a fixed location.
+                           //
+                           // Example:
+                           //
+                           // [rbp - 8] = a
+                           //
+                           // [rbp - 16] = b
+                           //
+                           buffer += "    mov [rbp - ";
+                           buffer += std::to_string((m_variableCount + 1) * 8);
+                           buffer += "], rbx\n";
 
-                // Generate the expression first.
-                // The result will be placed inside rbx.
-                generate_expr(stmt.expr, buffer);
+                           m_variableCount++;
 
+                           // Remember where this variable lives.
+                           m_scopes.back()[name] =
+                               Var{m_variableCount * 8};
+                       }
+                       else if constexpr (std::is_same_v<T, NodeStmntIf *>)
+                       {
+                           generate_if(stmt, buffer, has_exit);
+                       }
+                       else if constexpr (std::is_same_v<T, NodeStmntWhile *>)
+                       {
+                           generate_whilst(stmt, buffer, has_exit);
+                       }
+                       else if constexpr (std::is_same_v<T, NodeStmntFor *>)
+                       {
+                           generate_for(stmt, buffer, has_exit);
+                       }
+                       else if constexpr (std::is_same_v<T, NodeStmntAssign>)
+                       {
+                           std::string name = stmt.identifier;
 
-                // Reserve 8 bytes on the stack
-                // for this variable.
-                buffer += "    sub rsp, 8\n";
+                           generate_expr(stmt.expr, buffer);
+                           Var var = lookup(name);
 
+                           buffer += "    mov [rbp - ";
+                           buffer += std::to_string(var.offset);
+                           buffer += "], rbx\n";
+                       }
+                      else if constexpr (std::is_same_v<T, NodeStmntPrint>)
+{
+    generate_expr(stmt.expr, buffer);
 
-                // Store the variable at a fixed location.
-                //
-                // Example:
-                //
-                // [rbp - 8] = a
-                //
-                // [rbp - 16] = b
-                //
-                buffer += "    mov [rbp - ";
-                buffer += std::to_string((m_variableCount + 1) * 8);
-                buffer += "], rbx\n";
+    // --------------------------------------------------
+    // String
+    // --------------------------------------------------
+    if (std::holds_alternative<NodeExprStringLit>(
+            stmt.expr->expr))
+    {
+        auto &string =
+            std::get<NodeExprStringLit>(stmt.expr->expr);
 
+        buffer += "    mov rax, 1\n"; // sys_write
+        buffer += "    mov rdi, 1\n"; // stdout
+        buffer += "    mov rsi, rbx\n"; // string address
+        buffer += "    mov rdx, ";
+        buffer += std::to_string(string.value.size() + 1);
+        buffer += "\n";
+        buffer += "    syscall\n";
+    }
 
-                m_variableCount++;
-
-
-                // Remember where this variable lives.
-                m_scopes.back()[name] =
-                        Var{m_variableCount * 8};
-            } else if constexpr (std::is_same_v<T, NodeStmntIf *>) {
-                generate_if(stmt, buffer, has_exit);
-            } else if constexpr (std::is_same_v<T, NodeStmntWhile *>) {
-                generate_whilst(stmt, buffer, has_exit);
-            }
-            else if constexpr (std::is_same_v<T, NodeStmntFor *>) {
-                generate_for(stmt, buffer, has_exit);
-            }
-             else if constexpr (std::is_same_v<T, NodeStmntAssign>) {
-                std::string name = stmt.identifier;
-
-                generate_expr(stmt.expr, buffer);
-                Var var = lookup(name);
-
-                buffer += "    mov [rbp - ";
-                buffer += std::to_string(var.offset);
-                buffer += "], rbx\n";
-            } else if constexpr (std::is_same_v<T, NodeScope *>) {
-                generate_scope(stmt, buffer, has_exit);
-            } }, statement->stmnt);
+    // --------------------------------------------------
+    // Integer / expression
+    // --------------------------------------------------
+    else
+    {
+        generate_print_integer(buffer);
+    }
+}
+                       else if constexpr (std::is_same_v<T, NodeScope *>)
+                       {
+                           generate_scope(stmt, buffer, has_exit);
+                       } },
+                   statement->stmnt);
     }
 
     void generate_scope(NodeScope *scope,
@@ -517,7 +653,7 @@ private:
             }
             // String literal
             else if constexpr (std::is_same_v<T, NodeExprStringLit>) {
-                std::cerr << "GENERATING STRING: [" << node.value << "]\n";
+                
                 std::string label =
                     ".L_string_" + std::to_string(m_stringCount++);
             

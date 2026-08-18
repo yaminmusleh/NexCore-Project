@@ -112,6 +112,7 @@ public:
 	void ForStmt(NodeStmnt *&statement);
 	void WhileStmt(NodeStmnt *&statement);
 	void BlockStmt(NodeStmnt *&statement);
+	void PrintStmnt(NodeStmnt *&statement);
 	void AssignStmt(NodeStmnt *&statement);
 	void Expression(NodeExpr *&expr);
 	void ForInit(NodeStmnt *&statement);

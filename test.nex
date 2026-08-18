@@ -1,1 +1,8 @@
-print("hello");
+set counter = 0;
+
+whilst (counter < 5) {
+    print("inside whilst");
+    print(counter);
+
+    counter = counter + 1;
+}

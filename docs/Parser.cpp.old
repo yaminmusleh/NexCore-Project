@@ -103,10 +103,6 @@ void Parser::Statement(NodeStmnt *&statement) {
 		statement = nullptr;
 		
 		switch (la->kind) {
-		case 26 /* "print" */: {
-			PrintStmnt(statement);
-			break;
-		}
 		case 24 /* "set" */: {
 			SetStmt(statement);
 			break;
@@ -131,24 +127,16 @@ void Parser::Statement(NodeStmnt *&statement) {
 			BlockStmt(statement);
 			break;
 		}
+		case 26 /* "print" */: {
+			PrintStmnt(statement);
+			break;
+		}
 		case _identifier: {
 			AssignStmt(statement);
 			break;
 		}
 		default: SynErr(32); break;
 		}
-}
-
-void Parser::PrintStmnt(NodeStmnt *&statement) {
-		NodeExpr *expr = nullptr;
-		
-		Expect(26 /* "print" */);
-		Expect(_open_paren);
-		Expression(expr);
-		Expect(_close_paren);
-		Expect(_semi);
-		statement = make_print_statement(expr);
-		
 }
 
 void Parser::SetStmt(NodeStmnt *&statement) {
@@ -289,6 +277,18 @@ void Parser::BlockStmt(NodeStmnt *&statement) {
 		Expect(_close_scope);
 		statement =
 		   make_scope_statement(scope);
+		
+}
+
+void Parser::PrintStmnt(NodeStmnt *&statement) {
+		NodeExpr *expr = nullptr;
+		
+		Expect(26 /* "print" */);
+		Expect(_open_paren);
+		Expression(expr);
+		Expect(_close_paren);
+		Expect(_semi);
+		statement = make_print_statement(expr);
 		
 }
 
