@@ -1,8 +1,11 @@
-set counter = 0;
+print(0);
+print(-1);
+print(1);
+print(1000000);
+print(-1000000);
 
-whilst (counter < 5) {
-    print("inside whilst");
-    print(counter);
+print(10 / 3);
+print(10 % 3);
 
-    counter = counter + 1;
-}
+print(-10 / 3);
+print(-10 % 3);

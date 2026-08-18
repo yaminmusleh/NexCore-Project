@@ -95,19 +95,19 @@ private:
         /*
             rbx = integer to print
 
-            We need a temporary buffer.
-            Reserve 32 bytes on the stack.
+            Reserve 32 bytes on the stack for the
+            temporary string buffer.
         */
 
         buffer += "    sub rsp, 32\n";
 
-        // r12 = buffer end
+        // r12 points to the end of our buffer.
         buffer += "    lea r12, [rsp + 32]\n";
 
-        // rax = value
+        // rax = integer
         buffer += "    mov rax, rbx\n";
 
-        // Check negative.
+        // Check whether the number is negative.
         buffer += "    cmp rax, 0\n";
         buffer += "    jl " + negative + "\n";
 
@@ -119,19 +119,23 @@ private:
         // --------------------------------------------------
         buffer += negative + ":\n";
 
+        // Remember that the number was negative.
+        //
+        // r13 = 1 means negative.
+        buffer += "    mov r13, 1\n";
+
+        // Convert the number to its absolute value.
         buffer += "    neg rax\n";
 
-        // Put '-' at the end of the number.
-        buffer += "    dec r12\n";
-        buffer += "    mov byte [r12], '-'\n";
-
-        // Continue converting absolute value.
         buffer += "    jmp " + loop + "\n";
 
         // --------------------------------------------------
         // Positive
         // --------------------------------------------------
         buffer += positive + ":\n";
+
+        // r13 = 0 means positive.
+        buffer += "    xor r13, r13\n";
 
         // --------------------------------------------------
         // Convert digits
@@ -144,11 +148,24 @@ private:
 
         buffer += "    add dl, '0'\n";
 
+        // Since we're building backwards,
+        // digits are inserted from right to left.
         buffer += "    dec r12\n";
         buffer += "    mov [r12], dl\n";
 
         buffer += "    test rax, rax\n";
         buffer += "    jnz " + loop + "\n";
+
+        // --------------------------------------------------
+        // Add '-' AFTER the digits
+        // --------------------------------------------------
+        buffer += "    cmp r13, 0\n";
+        buffer += "    je " + done + "\n";
+
+        buffer += "    dec r12\n";
+        buffer += "    mov byte [r12], '-'\n";
+
+        buffer += done + ":\n";
 
         // --------------------------------------------------
         // Write number
@@ -171,12 +188,12 @@ private:
         buffer += "    mov rdi, 1\n";
         buffer += "    mov rsi, rsp\n";
         buffer += "    mov rdx, 1\n";
+
         buffer += "    syscall\n";
 
-        // Free buffer.
+        // Free temporary buffer.
         buffer += "    add rsp, 32\n";
     }
-
     // Generates temporary values.
     //
     // Example:
@@ -190,14 +207,6 @@ private:
         buffer += "    push " + value + "\n";
     }
 
-    // Removes a temporary value from the stack.
-    //
-    // Example:
-    //
-    // pop rax
-    //
-    // This takes the top temporary value and places it
-    // into the requested register.
     void pop_temp(std::string &buffer, const std::string &reg)
     {
         buffer += "    pop " + reg + "\n";

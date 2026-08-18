@@ -28,7 +28,7 @@ NodeStmnt *make_print_statement(NodeExpr *expr)
 
     if (!print_expr)
         throw std::bad_alloc{};
-        
+
     return new (print_expr) NodeStmnt{
         NodeStmntPrint{expr}};
 }
@@ -42,8 +42,16 @@ NodeExpr *make_string_expr(const std::string &value)
     if (!expr)
         throw std::bad_alloc{};
 
+    std::string string_value = value;
+    if (value.size() >= 2 &&
+        value.front() == '"' &&
+        value.back() == '"')
+    {
+        string_value = value.substr(1, value.size() - 2);
+    }
+
     return new (expr) NodeExpr(
-        NodeExpr{NodeExprStringLit{value}});
+        NodeExpr{NodeExprStringLit{string_value}});
 }
 
 NodeExpr *make_identifier_expr(const std::string &value)
