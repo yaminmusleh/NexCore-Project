@@ -1022,6 +1022,48 @@ private:
                 }
     
                 buffer += "    add rsp, 8\n";
+
+                // ===================
+                // Float
+                // ===================
+
+                if (resultType == ValueType::Float)
+                {
+                    if(node->op == "+")
+                    {
+                        buffer +=
+                        "    addss xmm1, xmm0\n";
+                    }
+
+                    else if(node->op == "-")
+                    {
+                        buffer +=
+                        "    subss xmm1, xmm0\n";
+                    }
+                    else if (node->op == "*")
+                    {
+                        buffer +=
+                            "    mulss xmm1, xmm0\n";
+                    }
+                    else if (node->op == "/")
+                    {
+                        buffer +=
+                            "    divss xmm1, xmm0\n";
+                    }
+                    else if (node->op == "%")
+                    {
+                        throw std::runtime_error(
+                            "Modulo is not supported for floating point");
+                    }
+                    else
+                    {
+                        throw std::runtime_error(
+                            "Unknown floating-point operator: " +
+                            node->op);
+                    }
+    
+                    buffer += "    movaps xmm0, xmm1\n";
+                }
             }
 
             // Unary expression
