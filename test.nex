@@ -1,12 +1,32 @@
-set x = 3.4f;
-set y = 2.0f;
-set a = x + y;
-set b = x - y;
-set c = x * y;
-set d = x / y;
+set f1 = 3.4f;
+set f2 = 2.0f;
 
-iff (a > 5.3f) {
-    exit(1);
+set d1 = 10.5d;
+set d2 = 2.5d;
+
+set f_add = f1 + f2;
+set f_sub = f1 - f2;
+set f_mul = f1 * f2;
+set f_div = f1 / f2;
+
+set d_add = d1 + d2;
+set d_sub = d1 - d2;
+set d_mul = d1 * d2;
+set d_div = d1 / d2;
+
+set mixed1 = d1 + f1;
+set mixed2 = d1 - f2;
+set mixed3 = d2 * f1;
+set mixed4 = d1 / f2;
+
+set precedence1 = d1 + d2 * 2.0d;
+set precedence2 = (d1 + d2) * 2.0d;
+set precedence3 = d1 - d2 / 2.5d;
+
+set result = d1 + d2;
+
+iff (result > 12.0d) {
+    exit(0);
 }
 
-exit(0);
+exit(1);

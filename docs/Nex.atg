@@ -35,7 +35,7 @@ TOKENS
     logical_or    = "||".
     logical_not   = "!".
 
-    identifier    = letter { letter | digit }.
+    identifier = letter { letter | digit | "_" }.
     int_lit       = digit { digit }.
     float_lit     = digit { digit } "." digit { digit } "f".
     double_lit    = digit { digit } "." digit { digit } "d".

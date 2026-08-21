@@ -448,16 +448,16 @@ Scanner::~Scanner() {
 void Scanner::Init() {
 	EOL    = '\n';
 	eofSym = 0;
-	maxT = 31;
-	noSym = 31;
+	maxT = 33;
+	noSym = 33;
 	int i;
 	for (i = 65; i <= 90; ++i) start.set(i, 19);
 	for (i = 97; i <= 122; ++i) start.set(i, 19);
-	for (i = 48; i <= 57; ++i) start.set(i, 20);
-	start.set(61, 23);
-	start.set(33, 24);
-	start.set(60, 25);
-	start.set(62, 26);
+	for (i = 48; i <= 57; ++i) start.set(i, 24);
+	start.set(61, 25);
+	start.set(33, 26);
+	start.set(60, 27);
+	start.set(62, 28);
 	start.set(59, 5);
 	start.set(40, 6);
 	start.set(41, 7);
@@ -470,15 +470,15 @@ void Scanner::Init() {
 	start.set(37, 14);
 	start.set(38, 15);
 	start.set(124, 17);
-	start.set(34, 21);
+	start.set(34, 22);
 		start.set(Buffer::EoF, -1);
-	keywords.set(L"set", 24);
-	keywords.set(L"exit", 25);
-	keywords.set(L"print", 26);
-	keywords.set(L"iff", 27);
-	keywords.set(L"otherwise", 28);
-	keywords.set(L"for", 29);
-	keywords.set(L"whilst", 30);
+	keywords.set(L"set", 26);
+	keywords.set(L"exit", 27);
+	keywords.set(L"print", 28);
+	keywords.set(L"iff", 29);
+	keywords.set(L"otherwise", 30);
+	keywords.set(L"for", 31);
+	keywords.set(L"whilst", 32);
 
 
 	tvalLength = 128;
@@ -707,37 +707,54 @@ Token* Scanner::NextToken() {
 		case 19:
 			case_19:
 			recEnd = pos; recKind = 21;
-			if ((ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || (ch >= L'a' && ch <= L'z')) {AddCh(); goto case_19;}
+			if ((ch >= L'0' && ch <= L'9') || (ch >= L'A' && ch <= L'Z') || ch == L'_' || (ch >= L'a' && ch <= L'z')) {AddCh(); goto case_19;}
 			else {t->kind = 21; wchar_t *literal = coco_string_create(tval, 0, tlen); t->kind = keywords.get(literal, t->kind); coco_string_delete(literal); break;}
 		case 20:
 			case_20:
-			recEnd = pos; recKind = 22;
-			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_20;}
-			else {t->kind = 22; break;}
+			{t->kind = 23; break;}
 		case 21:
 			case_21:
-			if (ch <= 9 || (ch >= 11 && ch <= 12) || (ch >= 14 && ch <= L'!') || (ch >= L'#' && ch <= 65535)) {AddCh(); goto case_21;}
-			else if (ch == L'"') {AddCh(); goto case_22;}
-			else {goto case_0;}
+			{t->kind = 24; break;}
 		case 22:
 			case_22:
-			{t->kind = 23; break;}
+			if (ch <= 9 || (ch >= 11 && ch <= 12) || (ch >= 14 && ch <= L'!') || (ch >= L'#' && ch <= 65535)) {AddCh(); goto case_22;}
+			else if (ch == L'"') {AddCh(); goto case_23;}
+			else {goto case_0;}
 		case 23:
+			case_23:
+			{t->kind = 25; break;}
+		case 24:
+			case_24:
+			recEnd = pos; recKind = 22;
+			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_24;}
+			else if (ch == L'.') {AddCh(); goto case_29;}
+			else {t->kind = 22; break;}
+		case 25:
 			recEnd = pos; recKind = 1;
 			if (ch == L'=') {AddCh(); goto case_1;}
 			else {t->kind = 1; break;}
-		case 24:
+		case 26:
 			recEnd = pos; recKind = 20;
 			if (ch == L'=') {AddCh(); goto case_2;}
 			else {t->kind = 20; break;}
-		case 25:
+		case 27:
 			recEnd = pos; recKind = 4;
 			if (ch == L'=') {AddCh(); goto case_3;}
 			else {t->kind = 4; break;}
-		case 26:
+		case 28:
 			recEnd = pos; recKind = 6;
 			if (ch == L'=') {AddCh(); goto case_4;}
 			else {t->kind = 6; break;}
+		case 29:
+			case_29:
+			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_30;}
+			else {goto case_0;}
+		case 30:
+			case_30:
+			if ((ch >= L'0' && ch <= L'9')) {AddCh(); goto case_30;}
+			else if (ch == L'f') {AddCh(); goto case_20;}
+			else if (ch == L'd') {AddCh(); goto case_21;}
+			else {goto case_0;}
 
 	}
 	AppendVal(t);
