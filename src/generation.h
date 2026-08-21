@@ -923,8 +923,22 @@ private:
 
                            ValueType leftType = get_expr_type(node->left);
                            ValueType rightType = get_expr_type(node->right);
-                           ValueType resultType = get_expr_type(
-                               reinterpret_cast<NodeExpr *>(node));
+                           ValueType resultType;
+
+                           if (leftType == ValueType::Double ||
+                               rightType == ValueType::Double)
+                           {
+                               resultType = ValueType::Double;
+                           }
+                           else if (leftType == ValueType::Float ||
+                                    rightType == ValueType::Float)
+                           {
+                               resultType = ValueType::Float;
+                           }
+                           else
+                           {
+                               resultType = ValueType::Int;
+                           }
 
                            // ==============================
                            // Integer Arithmetic
