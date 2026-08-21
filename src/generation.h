@@ -666,6 +666,13 @@ private:
         m_scopes.pop_back();
     }
 
+    /*
+“    Dreams save us. Dreams lift us up and transform us into something better. 
+     And on my soul, I swear that until my dream of a world where dignity, 
+     honor and justice are the reality we all share, I'll never stop fighting.”  
+     - Kal-El
+    */
+   
     void generate_condition_branch(NodeExpr *condition,
                                    std::string &buffer,
                                    const std::string &trueLabel,
@@ -743,51 +750,29 @@ private:
         }
 
         // comparison
-        generate_expr(binary->left, buffer);
-
-        push_temp(buffer, "rbx");
-
-        generate_expr(binary->right, buffer);
-
-        pop_temp(buffer, "rax");
-
-        buffer += "    cmp rax, rbx\n";
-
-        if (binary->op == "==")
+        ValueType leftType =
+            get_expr_type(binary->left);
+        
+        ValueType rightType =
+            get_expr_type(binary->right);
+        
+        ValueType comparisonType;
+        
+        if (leftType == ValueType::Double ||
+            rightType == ValueType::Double)
         {
-            buffer += "    je " + trueLabel + "\n";
-            buffer += "    jmp " + falseLabel + "\n";
+            comparisonType = ValueType::Double;
         }
-        else if (binary->op == "!=")
+        else if (leftType == ValueType::Float ||
+                 rightType == ValueType::Float)
         {
-            buffer += "    jne " + trueLabel + "\n";
-            buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == "<")
-        {
-            buffer += "    jl " + trueLabel + "\n";
-            buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == "<=")
-        {
-            buffer += "    jle " + trueLabel + "\n";
-            buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == ">")
-        {
-            buffer += "    jg " + trueLabel + "\n";
-            buffer += "    jmp " + falseLabel + "\n";
-        }
-        else if (binary->op == ">=")
-        {
-            buffer += "    jge " + trueLabel + "\n";
-            buffer += "    jmp " + falseLabel + "\n";
+            comparisonType = ValueType::Float;
         }
         else
         {
-            throw std::runtime_error(
-                "Unknown condition operator: " + binary->op);
+            comparisonType = ValueType::Int;
         }
+
     }
 
     void generate_condition(NodeExpr *condition,
