@@ -10,6 +10,7 @@
 #include <utility>
 #include <cstdint>
 #include <cstring>
+#include <cstdio>
 
 class Generator
 {
@@ -810,278 +811,374 @@ private:
     {
         std::visit([&](auto &&node)
                    {
-            using T = std::decay_t<decltype(node)>;
+                       using T = std::decay_t<decltype(node)>;
 
-            // Integer literal
-            if constexpr (std::is_same_v<T, NodeExprIntLit>) {
-                buffer += "    mov rbx, ";
-                buffer += node.value;
-                buffer += "\n";
-            }
-            
-            // Float literal
-            else if constexpr (std::is_same_v<T, NodeExprFloatLit>)
-            {
-                uint32_t bits = float_bits(node.value);
+                       // Integer literal
+                       if constexpr (std::is_same_v<T, NodeExprIntLit>)
+                       {
+                           buffer += "    mov rbx, ";
+                           buffer += node.value;
+                           buffer += "\n";
+                       }
 
-                buffer += "    mov eax, 0x";
+                       // Float literal
+                       else if constexpr (std::is_same_v<T, NodeExprFloatLit>)
+                       {
+                           uint32_t bits = float_bits(node.value);
 
-                char hex[16];
-                std::snprintf(
-                    hex,
-                    sizeof(hex),
-                    "%08x",
-                    bits
-                );
-                buffer += hex;
-                buffer += "\n";
-            }
-            
-            // Double literal
-            else if constexpr (std::is_same_v<T, NodeExprDoubleLit>)
-            {
-                uint64_t bits = double_bits(node.value);
-                // is used to safely inspect the raw, underlying binary bits of a 64-bit floating-point number (double) without changing its numerical value.
+                           buffer += "    mov eax, 0x";
 
+                           char hex[16];
+                           std::snprintf(
+                               hex,
+                               sizeof(hex),
+                               "%08x",
+                               bits);
+                           buffer += hex;
+                           buffer += "\n";
+                       }
 
-                buffer += "    mov rax, 0x";
+                       // Double literal
+                       else if constexpr (std::is_same_v<T, NodeExprDoubleLit>)
+                       {
+                           uint64_t bits = double_bits(node.value);
+                           // is used to safely inspect the raw, underlying binary bits of a 64-bit floating-point number (double) without changing its numerical value.
 
-                char hex[32];
-                std::snprintf(
-                    hex,
-                    sizeof(hex),
-                    "016llx",
-                    static_cast<unsigned long long>(bits)
-                );
+                           buffer += "    mov rax, 0x";
 
-                buffer += hex;
-                buffer += "\n";
+                           char hex[32];
+                           std::snprintf(
+                               hex,
+                               sizeof(hex),
+                               "016llx",
+                               static_cast<unsigned long long>(bits));
 
-                buffer += "    movq xmm0, rax\n";
-            }
+                           buffer += hex;
+                           buffer += "\n";
 
-            // Identifier
-            else if constexpr (std::is_same_v<T, NodeExprIdentifier>) {
-                std::string name = node.value;
+                           buffer += "    movq xmm0, rax\n";
+                       }
 
-                Var var = lookup(node.value);
+                       // Identifier
+                       else if constexpr (std::is_same_v<T, NodeExprIdentifier>)
+                       {
+                           std::string name = node.value;
 
-                //int
-                if(var.type == ValueType::Int)
-                {
-                buffer += "    mov rbx, [rbp - ";
-                buffer += std::to_string(var.offset);
-                buffer += "]\n";
-                }
+                           Var var = lookup(node.value);
 
-                //float
-                if(var.type == ValueType::Float)
-                {
-                buffer += "    movss xmm0, [rbp - ";
-                buffer += std::to_string(var.offset);
-                buffer += "]\n";
-                }
+                           // int
+                           if (var.type == ValueType::Int)
+                           {
+                               buffer += "    mov rbx, [rbp - ";
+                               buffer += std::to_string(var.offset);
+                               buffer += "]\n";
+                           }
 
-                //double
-                if(var.type == ValueType::Int)
-                {
-                buffer += "    movsd xmm0, [rbp - ";
-                buffer += std::to_string(var.offset);
-                buffer += "]\n";
-                }
-            }
-            
-            // String literal
-            else if constexpr (std::is_same_v<T, NodeExprStringLit>) {
-                
-                std::string label =
-                    ".L_string_" + std::to_string(m_stringCount++);
-            
-                m_strings.push_back({label, node.value});
-            
-                buffer += "    lea rbx, [rel ";
-                buffer += label;
-                buffer += "]\n";
+                           // float
+                           if (var.type == ValueType::Float)
+                           {
+                               buffer += "    movss xmm0, [rbp - ";
+                               buffer += std::to_string(var.offset);
+                               buffer += "]\n";
+                           }
 
-                
-            }              
+                           // double
+                           if (var.type == ValueType::Int)
+                           {
+                               buffer += "    movsd xmm0, [rbp - ";
+                               buffer += std::to_string(var.offset);
+                               buffer += "]\n";
+                           }
+                       }
 
-            // Binary expression
-            else if constexpr (std::is_same_v<T, BinaryExpr *>) {
-                if (node->op == "<" ||
-                    node->op == ">" ||
-                    node->op == "<=" ||
-                    node->op == ">=" ||
-                    node->op == "==" ||
-                    node->op == "!=" ||
-                    node->op == "&&" ||
-                    node->op == "||") {
-                    throw std::runtime_error(
-                        "Condition used as expression"
-                    );
-                }
+                       // String literal
+                       else if constexpr (std::is_same_v<T, NodeExprStringLit>)
+                       {
 
-                ValueType leftType = get_expr_type(node->left);
-                ValueType rightType = get_expr_type(node->right);
-                ValueType resultType = get_expr_type(
-                    reinterpret_cast<NodeExpr *>(node)
-                );
+                           std::string label =
+                               ".L_string_" + std::to_string(m_stringCount++);
 
-                // ==============================
-                // Integer Arithmetic
-                // ==============================
+                           m_strings.push_back({label, node.value});
 
-                if (resultType == ValueType::Int)
-                {
-                    generate_expr(node->left, buffer);
-                    buffer += "    push rbx\n";
+                           buffer += "    lea rbx, [rel ";
+                           buffer += label;
+                           buffer += "]\n";
+                       }
 
-                    generate_expr(node->right, buffer);
+                       // Binary expression
+                       else if constexpr (std::is_same_v<T, BinaryExpr *>)
+                       {
+                           if (node->op == "<" ||
+                               node->op == ">" ||
+                               node->op == "<=" ||
+                               node->op == ">=" ||
+                               node->op == "==" ||
+                               node->op == "!=" ||
+                               node->op == "&&" ||
+                               node->op == "||")
+                           {
+                               throw std::runtime_error(
+                                   "Condition used as expression");
+                           }
 
-                    buffer += "    pop rax\n";
+                           ValueType leftType = get_expr_type(node->left);
+                           ValueType rightType = get_expr_type(node->right);
+                           ValueType resultType = get_expr_type(
+                               reinterpret_cast<NodeExpr *>(node));
 
-                    if (node->op == "+")
-                    {
-                        buffer += "    add rax, rbx\n";
-                    }
-                    else if (node->op == "-")
-                    {
-                        buffer += "    sub rax, rbx\n";
-                    }
-                    else if (node->op == "*")
-                    {
-                        buffer += "    imul rax, rbx\n";
-                    }
-                    else if (node->op == "/")
-                    {
-                        buffer += "    cqo\n";
-                        buffer += "    idiv rax, rbx\n";
-                    }
-                    else if (node->op == "%")
-                    {
-                        buffer += "    cqo\n";
-                        buffer += "    idiv rax, rbx\n";
-                        buffer += "    mov rax,rdx\n";
-                    }
-                    else
-                    {
-                        throw std::runtime_error(
-                            "Uknown integer operator: "+
-                            node->op
-                        );
-                    }
+                           // ==============================
+                           // Integer Arithmetic
+                           // ==============================
 
-                    buffer += "    mov rbx,rax\n";
-                    return;
-                }
+                           if (resultType == ValueType::Int)
+                           {
+                               generate_expr(node->left, buffer);
+                               buffer += "    push rbx\n";
 
-                // ===========================
-                // Floating-point arithmetic
-                // ===========================
+                               generate_expr(node->right, buffer);
 
-                //we will generate left operator
-                generate_expr(node->left, buffer);
+                               buffer += "    pop rax\n";
 
-                //then convert left to the resultType:
-                convert_value(
-                    leftType, resultType,buffer
-                );
+                               if (node->op == "+")
+                               {
+                                   buffer += "    add rax, rbx\n";
+                               }
+                               else if (node->op == "-")
+                               {
+                                   buffer += "    sub rax, rbx\n";
+                               }
+                               else if (node->op == "*")
+                               {
+                                   buffer += "    imul rax, rbx\n";
+                               }
+                               else if (node->op == "/")
+                               {
+                                   buffer += "    cqo\n";
+                                   buffer += "    idiv rax, rbx\n";
+                               }
+                               else if (node->op == "%")
+                               {
+                                   buffer += "    cqo\n";
+                                   buffer += "    idiv rax, rbx\n";
+                                   buffer += "    mov rax,rdx\n";
+                               }
+                               else
+                               {
+                                   throw std::runtime_error(
+                                       "Uknown integer operator: " +
+                                       node->op);
+                               }
 
-                //we will save the left in xmm1 through the stack
-                buffer += "    sub rsp, 8\n";
+                               buffer += "    mov rbx,rax\n";
+                               return;
+                           }
 
-                if (resultType == ValueType::Float)
-                {
-                    buffer +=
-                        "    movss [rsp], xmm0\n";
-                }
-                else
-                {
-                    buffer +=
-                        "    movsd [rsp], xmm0\n";
-                }
+                           // ===========================
+                           // Floating-point arithmetic
+                           // ===========================
 
-                //we will generate right operator
-                generate_expr(node->right, buffer);
+                           // we will generate left operator
+                           generate_expr(node->left, buffer);
 
-                //then convert right to the resultType:
-                convert_value(
-                    rightType, resultType,buffer
-                );
+                           // then convert left to the resultType:
+                           convert_value(
+                               leftType, resultType, buffer);
 
-                //then restore left into xmm1
-                if (resultType == ValueType::Float)
-                {
-                    buffer +=
-                        "    movss xmm1, [rsp]\n";
-                }
-                else
-                {
-                    buffer +=
-                        "    movsd xmm1, [rsp]\n";
-                }
-    
-                buffer += "    add rsp, 8\n";
+                           // we will save the left in xmm1 through the stack
+                           buffer += "    sub rsp, 8\n";
 
-                // ===================
-                // Float
-                // ===================
+                           if (resultType == ValueType::Float)
+                           {
+                               buffer +=
+                                   "    movss [rsp], xmm0\n";
+                           }
+                           else
+                           {
+                               buffer +=
+                                   "    movsd [rsp], xmm0\n";
+                           }
 
-                if (resultType == ValueType::Float)
-                {
-                    if(node->op == "+")
-                    {
-                        buffer +=
-                        "    addss xmm1, xmm0\n";
-                    }
+                           // we will generate right operator
+                           generate_expr(node->right, buffer);
 
-                    else if(node->op == "-")
-                    {
-                        buffer +=
-                        "    subss xmm1, xmm0\n";
-                    }
-                    else if (node->op == "*")
-                    {
-                        buffer +=
-                            "    mulss xmm1, xmm0\n";
-                    }
-                    else if (node->op == "/")
-                    {
-                        buffer +=
-                            "    divss xmm1, xmm0\n";
-                    }
-                    else if (node->op == "%")
-                    {
-                        throw std::runtime_error(
-                            "Modulo is not supported for floating point");
-                    }
-                    else
-                    {
-                        throw std::runtime_error(
-                            "Unknown floating-point operator: " +
-                            node->op);
-                    }
-    
-                    buffer += "    movaps xmm0, xmm1\n";
-                }
-            }
+                           // then convert right to the resultType:
+                           convert_value(
+                               rightType, resultType, buffer);
 
-            // Unary expression
-            else if constexpr (std::is_same_v<T, UnaryExpr *>) {
-                generate_expr(node->expr, buffer);
+                           // then restore left into xmm1
+                           if (resultType == ValueType::Float)
+                           {
+                               buffer +=
+                                   "    movss xmm1, [rsp]\n";
+                           }
+                           else
+                           {
+                               buffer +=
+                                   "    movsd xmm1, [rsp]\n";
+                           }
 
-                if (node->op == "-") {
-                    buffer += "    neg rbx\n";
-                } else if (node->op == "!") {
-                    buffer += "    cmp rbx, 0\n";
-                    buffer += "    sete al\n";
-                    buffer += "    movzx rbx, al\n";
-                } else {
-                    throw std::runtime_error(
-                        "Unknown unary operator: " + node->op
-                    );
-                }
-            } }, expr->expr);
+                           buffer += "    add rsp, 8\n";
+
+                           // ===================
+                           // Float
+                           // ===================
+
+                           if (resultType == ValueType::Float)
+                           {
+                               if (node->op == "+")
+                               {
+                                   buffer +=
+                                       "    addss xmm1, xmm0\n";
+                               }
+
+                               else if (node->op == "-")
+                               {
+                                   buffer +=
+                                       "    subss xmm1, xmm0\n";
+                               }
+                               else if (node->op == "*")
+                               {
+                                   buffer +=
+                                       "    mulss xmm1, xmm0\n";
+                               }
+                               else if (node->op == "/")
+                               {
+                                   buffer +=
+                                       "    divss xmm1, xmm0\n";
+                               }
+                               else if (node->op == "%")
+                               {
+                                   throw std::runtime_error(
+                                       "Modulo is not supported for floating point");
+                               }
+                               else
+                               {
+                                   throw std::runtime_error(
+                                       "Unknown floating-point operator: " +
+                                       node->op);
+                               }
+
+                               buffer += "    movaps xmm0, xmm1\n";
+                           }
+
+                           // =====================================================
+                           // Double
+                           // =====================================================
+
+                           else if (resultType == ValueType::Double)
+                           {
+                               if (node->op == "+")
+                               {
+                                   buffer +=
+                                       "    addsd xmm1, xmm0\n";
+                               }
+                               else if (node->op == "-")
+                               {
+                                   buffer +=
+                                       "    subsd xmm1, xmm0\n";
+                               }
+                               else if (node->op == "*")
+                               {
+                                   buffer +=
+                                       "    mulsd xmm1, xmm0\n";
+                               }
+                               else if (node->op == "/")
+                               {
+                                   buffer +=
+                                       "    divsd xmm1, xmm0\n";
+                               }
+                               else if (node->op == "%")
+                               {
+                                   throw std::runtime_error(
+                                       "Modulo is not supported for floating point");
+                               }
+                               else
+                               {
+                                   throw std::runtime_error(
+                                       "Unknown floating-point operator: " +
+                                       node->op);
+                               }
+
+                               buffer += "    movapd xmm0, xmm1\n";
+                           }
+                       }
+
+                       // Unary expression
+                       else if constexpr (std::is_same_v<T, UnaryExpr *>)
+                       {
+                           ValueType type =
+                               get_expr_type(node->expr);
+
+                           generate_expr(node->expr, buffer);
+
+                           if (node->op == "-")
+                           {
+                               if (type == ValueType::Int)
+                               {
+                                   buffer +=
+                                       "    neg rbx\n";
+                               }
+                               else if (type == ValueType::Float)
+                               {
+                                   buffer +=
+                                       "    xorps xmm1, xmm1\n";
+                                   buffer +=
+                                       "    subss xmm1, xmm0\n";
+                                   buffer +=
+                                       "    movaps xmm0, xmm1\n";
+                               }
+                               else if (type == ValueType::Double)
+                               {
+                                   buffer +=
+                                       "    xorpd xmm1, xmm1\n";
+                                   buffer +=
+                                       "    subsd xmm1, xmm0\n";
+                                   buffer +=
+                                       "    movapd xmm0, xmm1\n";
+                               }
+                           }
+                           else if (node->op == "!")
+                           {
+                               if (type == ValueType::Int)
+                               {
+                                   buffer +=
+                                       "    cmp rbx, 0\n";
+                                   buffer +=
+                                       "    sete al\n";
+                                   buffer +=
+                                       "    movzx rbx, al\n";
+                               }
+                               else if (type == ValueType::Float)
+                               {
+                                   buffer +=
+                                       "    xorps xmm1, xmm1\n";
+                                   buffer +=
+                                       "    ucomiss xmm0, xmm1\n";
+                                   buffer +=
+                                       "    sete al\n";
+                                   buffer +=
+                                       "    movzx rbx, al\n";
+                               }
+                               else if (type == ValueType::Double)
+                               {
+                                   buffer +=
+                                       "    xorpd xmm1, xmm1\n";
+                                   buffer +=
+                                       "    ucomisd xmm0, xmm1\n";
+                                   buffer +=
+                                       "    sete al\n";
+                                   buffer +=
+                                       "    movzx rbx, al\n";
+                               }
+                           }
+                           else
+                           {
+                               throw std::runtime_error(
+                                   "Unknown unary operator: " +
+                                   node->op);
+                           }
+                       } },
+                   expr->expr);
     }
 
     //----------------------------------------------------//
