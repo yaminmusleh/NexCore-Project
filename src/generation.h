@@ -773,6 +773,45 @@ private:
             comparisonType = ValueType::Int;
         }
 
+        // =========================================================
+        // Integer comparison
+        // =========================================================
+        
+        if (comparisonType == ValueType::Int)
+        {
+            generate_expr(binary->left, buffer);
+        
+            buffer += "    push rbx\n";
+        
+            generate_expr(binary->right, buffer);
+        
+            buffer += "    pop rax\n";
+        
+            buffer += "    cmp rax, rbx\n";
+        
+            if (binary->op == "==")
+                buffer += "    je " + trueLabel + "\n";
+            else if (binary->op == "!=")
+                buffer += "    jne " + trueLabel + "\n";
+            else if (binary->op == "<")
+                buffer += "    jl " + trueLabel + "\n";
+            else if (binary->op == "<=")
+                buffer += "    jle " + trueLabel + "\n";
+            else if (binary->op == ">")
+                buffer += "    jg " + trueLabel + "\n";
+            else if (binary->op == ">=")
+                buffer += "    jge " + trueLabel + "\n";
+            else
+                throw std::runtime_error(
+                    "Unknown condition operator: " +
+                    binary->op);
+        
+            buffer += "    jmp " + falseLabel + "\n";
+        
+            return;
+        }
+        
+
     }
 
     void generate_condition(NodeExpr *condition,
