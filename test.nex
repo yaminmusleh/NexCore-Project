@@ -1,11 +1,12 @@
-print(0);
-print(-1);
-print(1);
-print(1000000);
-print(-1000000);
+set x = 3.4f;
+set y = 2.0f;
+set a = x + y;
+set b = x - y;
+set c = x * y;
+set d = x / y;
 
-print(10 / 3);
-print(10 % 3);
+iff (a > 5.3f) {
+    exit(1);
+}
 
-print(-10 / 3);
-print(-10 % 3);
+exit(0);

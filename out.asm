@@ -3,9 +3,10 @@ section .text
 _start:
     push rbp
     mov rbp, rsp
-    sub rsp, 8
+    mov rbx, 3
     mov [rbp - 8], rbx
-    mov rbx, [rbp - 8]
-    mov rdi, rbx
+    mov rdi, 0
     mov rax, 60
     syscall
+
+section .rodata

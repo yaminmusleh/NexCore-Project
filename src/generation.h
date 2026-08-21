@@ -532,6 +532,12 @@ private:
                                buffer += std::to_string(offset);
                                buffer += "], rbx\n";
                            }
+                           else if (type == ValueType::Float)
+                           {
+                               buffer += "    movss [rbp - ";
+                               buffer += std::to_string(offset);
+                               buffer += "], xmm0\n";
+                           }
                            else if(type == ValueType::Double)
                            {
                                buffer += "    movsd [rbp - ";
@@ -590,7 +596,7 @@ private:
                            }
                            else if (var.type == ValueType::Double)
                            {
-                            buffer += "    movss [rbp - ";
+                            buffer += "    movsd [rbp - ";
                             buffer += std::to_string(var.offset);
                             buffer += "], xmm0\n";
                            }
@@ -667,12 +673,12 @@ private:
     }
 
     /*
-“    Dreams save us. Dreams lift us up and transform us into something better. 
-     And on my soul, I swear that until my dream of a world where dignity, 
-     honor and justice are the reality we all share, I'll never stop fighting.”  
+“    Dreams save us. Dreams lift us up and transform us into something better.
+     And on my soul, I swear that until my dream of a world where dignity,
+     honor and justice are the reality we all share, I'll never stop fighting.”
      - Kal-El
     */
-   
+
     void generate_condition_branch(NodeExpr *condition,
                                    std::string &buffer,
                                    const std::string &trueLabel,
@@ -752,12 +758,12 @@ private:
         // comparison
         ValueType leftType =
             get_expr_type(binary->left);
-        
+
         ValueType rightType =
             get_expr_type(binary->right);
-        
+
         ValueType comparisonType;
-        
+
         if (leftType == ValueType::Double ||
             rightType == ValueType::Double)
         {
@@ -776,19 +782,19 @@ private:
         // =========================================================
         // Integer comparison
         // =========================================================
-        
+
         if (comparisonType == ValueType::Int)
         {
             generate_expr(binary->left, buffer);
-        
+
             buffer += "    push rbx\n";
-        
+
             generate_expr(binary->right, buffer);
-        
+
             buffer += "    pop rax\n";
-        
+
             buffer += "    cmp rax, rbx\n";
-        
+
             if (binary->op == "==")
                 buffer += "    je " + trueLabel + "\n";
             else if (binary->op == "!=")
@@ -805,13 +811,86 @@ private:
                 throw std::runtime_error(
                     "Unknown condition operator: " +
                     binary->op);
-        
+
             buffer += "    jmp " + falseLabel + "\n";
-        
+
             return;
         }
-        
 
+        // =========================================================
+        // Floating-point comparison
+        // =========================================================
+
+        generate_expr(binary->left, buffer);
+
+        convert_value(
+            leftType,
+            comparisonType,
+            buffer);
+
+        buffer += "    sub rsp, 8\n";
+
+        if (comparisonType == ValueType::Float)
+        {
+            buffer += "    movss [rsp], xmm0\n";
+        }
+        else
+        {
+            buffer += "    movsd [rsp], xmm0\n";
+        }
+
+        generate_expr(binary->right, buffer);
+
+        convert_value(
+            rightType,
+            comparisonType,
+            buffer);
+
+        if (comparisonType == ValueType::Float)
+        {
+            buffer += "    movss xmm1, [rsp]\n";
+            buffer += "    add rsp, 8\n";
+            buffer += "    ucomiss xmm1, xmm0\n";
+        }
+        else
+        {
+            buffer += "    movsd xmm1, [rsp]\n";
+            buffer += "    add rsp, 8\n";
+            buffer += "    ucomisd xmm1, xmm0\n";
+        }
+
+        if (binary->op == "==")
+        {
+            buffer += "    je " + trueLabel + "\n";
+        }
+        else if (binary->op == "!=")
+        {
+            buffer += "    jne " + trueLabel + "\n";
+        }
+        else if (binary->op == "<")
+        {
+            buffer += "    jb " + trueLabel + "\n";
+        }
+        else if (binary->op == "<=")
+        {
+            buffer += "    jbe " + trueLabel + "\n";
+        }
+        else if (binary->op == ">")
+        {
+            buffer += "    ja " + trueLabel + "\n";
+        }
+        else if (binary->op == ">=")
+        {
+            buffer += "    jae " + trueLabel + "\n";
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Unknown condition operator: " +
+                binary->op);
+        }
+
+        buffer += "    jmp " + falseLabel + "\n";
     }
 
     void generate_condition(NodeExpr *condition,
@@ -850,16 +929,13 @@ private:
                        {
                            uint32_t bits = float_bits(node.value);
 
-                           buffer += "    mov eax, 0x";
-
                            char hex[16];
-                           std::snprintf(
-                               hex,
-                               sizeof(hex),
-                               "%08x",
-                               bits);
+                           std::snprintf(hex, sizeof(hex), "%08x", bits);
+                       
+                           buffer += "    mov eax, 0x";
                            buffer += hex;
                            buffer += "\n";
+                           buffer += "    movd xmm0, eax\n";
                        }
 
                        // Double literal
@@ -874,7 +950,7 @@ private:
                            std::snprintf(
                                hex,
                                sizeof(hex),
-                               "016llx",
+                               "%016llx",
                                static_cast<unsigned long long>(bits));
 
                            buffer += hex;
@@ -907,7 +983,7 @@ private:
                            }
 
                            // double
-                           if (var.type == ValueType::Int)
+                           if (var.type == ValueType::Double)
                            {
                                buffer += "    movsd xmm0, [rbp - ";
                                buffer += std::to_string(var.offset);
@@ -992,13 +1068,13 @@ private:
                                else if (node->op == "/")
                                {
                                    buffer += "    cqo\n";
-                                   buffer += "    idiv rax, rbx\n";
+                                   buffer += "    idiv rbx\n";
                                }
                                else if (node->op == "%")
                                {
                                    buffer += "    cqo\n";
-                                   buffer += "    idiv rax, rbx\n";
-                                   buffer += "    mov rax,rdx\n";
+                                   buffer += "    idiv rbx\n";
+                                   buffer += "    mov rax, rdx\n";
                                }
                                else
                                {
