@@ -974,6 +974,54 @@ private:
                     buffer += "    mov rbx,rax\n";
                     return;
                 }
+
+                // ===========================
+                // Floating-point arithmetic
+                // ===========================
+
+                //we will generate left operator
+                generate_expr(node->left, buffer);
+
+                //then convert left to the resultType:
+                convert_value(
+                    leftType, resultType,buffer
+                );
+
+                //we will save the left in xmm1 through the stack
+                buffer += "    sub rsp, 8\n";
+
+                if (resultType == ValueType::Float)
+                {
+                    buffer +=
+                        "    movss [rsp], xmm0\n";
+                }
+                else
+                {
+                    buffer +=
+                        "    movsd [rsp], xmm0\n";
+                }
+
+                //we will generate right operator
+                generate_expr(node->right, buffer);
+
+                //then convert right to the resultType:
+                convert_value(
+                    rightType, resultType,buffer
+                );
+
+                //then restore left into xmm1
+                if (resultType == ValueType::Float)
+                {
+                    buffer +=
+                        "    movss xmm1, [rsp]\n";
+                }
+                else
+                {
+                    buffer +=
+                        "    movsd xmm1, [rsp]\n";
+                }
+    
+                buffer += "    add rsp, 8\n";
             }
 
             // Unary expression
