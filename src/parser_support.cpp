@@ -2,6 +2,11 @@
 #include <new>
 #include <utility>
 
+/*
+in assembly:
+rbx is integer expression
+xmm0 are for double and float
+*/
 ArenaAllocator *arena = nullptr;
 NodeProgram program;
 
@@ -53,7 +58,45 @@ NodeExpr *make_string_expr(const std::string &value)
     return new (expr) NodeExpr(
         NodeExpr{NodeExprStringLit{string_value}});
 }
+//---------------------------------float expression----------------------------//
+NodeExpr *make_float_expr(const std::string &value)
+{
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized");
+    NodeExpr *expr = arena->alloc<NodeExpr>();
 
+    if (!expr)
+        throw std::bad_alloc{};
+
+     std::string val = value;
+
+    if (!val.empty() && val.back() == 'f')
+        val.pop_back();
+
+    return new (expr) NodeExpr(
+        NodeExpr{NodeExprFloatLit{val}});
+}
+//---------------------------------double expression----------------------------//
+NodeExpr *make_double_expr(const std::string &value)
+{
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized");
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+     std::string val = value;
+
+    if (!val.empty() && val.back() == 'd')
+        val.pop_back();
+
+    return new (expr) NodeExpr(
+        NodeExpr{NodeExprDoubleLit{val}});
+}
+//---------------------------------identifier expression----------------------------//
 NodeExpr *make_identifier_expr(const std::string &value)
 {
     if (!arena)

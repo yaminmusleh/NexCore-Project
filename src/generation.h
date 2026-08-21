@@ -212,19 +212,18 @@ private:
         buffer += "    pop " + reg + "\n";
     }
 
+    enum class ValueType
+    {
+        Int,
+        Float,
+        Double
+    };
+
     struct Var
     {
-        // The position of the variable relative to rbp.
-        //
-        // Example:
-        //
-        // offset = 8
-        //
-        // means:
-        //
-        // [rbp - 8]
-        //
+
         size_t offset;
+        ValueType type;
     };
 
     void generate_if(NodeStmntIf *stmt,
@@ -340,16 +339,59 @@ private:
         has_exit = body_exit;
     }
 
-    // Generates a single statement.
-    //
-    // Statements can be:
-    //
-    // set x = expression;
-    // exit(expression);
-    // { scope }
-    //
-    // A scope can contain more statements,
-    // so this function calls itself recursively.
+    ValueType get_expr_type(NodeExpr *expr)
+    {
+        return std::visit([&](auto &&node) -> ValueType
+                          {
+        using T = std::decay_t<decltype(node)>;
+
+        if constexpr (std::is_same_v<T, NodeExprIntLit>)
+        {
+            return ValueType::Int;
+        }
+        else if constexpr (std::is_same_v<T, NodeExprFloatLit>)
+        {
+            return ValueType::Float;
+        }
+        else if constexpr (std::is_same_v<T, NodeExprDoubleLit>)
+        {
+            return ValueType::Double;
+        }
+        else if constexpr (std::is_same_v<T, NodeExprIdentifier>)
+        {
+            return lookup(node.value).type;
+        }
+        else if constexpr (std::is_same_v<T, BinaryExpr *>)
+        {
+            ValueType left = get_expr_type(node->left);
+            ValueType right = get_expr_type(node->right);
+
+            if (left == ValueType::Double ||
+                right == ValueType::Double)
+            {
+                return ValueType::Double;
+            }
+
+            if (left == ValueType::Float ||
+                right == ValueType::Float)
+            {
+                return ValueType::Float;
+            }
+
+            return ValueType::Int;
+        }
+        else if constexpr (std::is_same_v<T, UnaryExpr *>)
+        {
+            return get_expr_type(node->expr);
+        }
+        else
+        {
+            throw std::runtime_error(
+                "Expression does not have a numeric type");
+        } },
+                          expr->expr);
+    }
+
     void generate_statement(NodeStmnt *statement,
                             std::string &buffer,
                             bool &has_exit)
@@ -376,23 +418,12 @@ private:
                        {
                            std::string name =
                                stmt.identifier;
-
-                           // Generate the expression first.
-                           // The result will be placed inside rbx.
+                               ValueType type = get_expr_type(stmt.expr);
                            generate_expr(stmt.expr, buffer);
 
-                           // Reserve 8 bytes on the stack
-                           // for this variable.
+                           // Reserve 8 bytes for the variable.
                            buffer += "    sub rsp, 8\n";
 
-                           // Store the variable at a fixed location.
-                           //
-                           // Example:
-                           //
-                           // [rbp - 8] = a
-                           //
-                           // [rbp - 16] = b
-                           //
                            buffer += "    mov [rbp - ";
                            buffer += std::to_string((m_variableCount + 1) * 8);
                            buffer += "], rbx\n";
@@ -401,8 +432,10 @@ private:
 
                            // Remember where this variable lives.
                            m_scopes.back()[name] =
-                               Var{m_variableCount * 8};
+                               Var{m_variableCount * 8, type};
                        }
+
+
                        else if constexpr (std::is_same_v<T, NodeStmntIf *>)
                        {
                            generate_if(stmt, buffer, has_exit);
@@ -649,6 +682,18 @@ private:
                 buffer += node.value;
                 buffer += "\n";
             }
+            
+            //float case rejection:
+            else if constexpr (std::is_same_v<T, NodeExprFloatLit>)
+            {
+                throw std::runtime_error(
+                  "Float code generation is not implemented yet");
+            }
+            else if constexpr (std::is_same_v<T, NodeExprDoubleLit>)
+            {
+                throw std::runtime_error(
+                  "Double code generation is not implemented yet");
+            }
 
             // Identifier
             else if constexpr (std::is_same_v<T, NodeExprIdentifier>) {
@@ -738,16 +783,6 @@ private:
             } }, expr->expr);
     }
 
-    // Finds a variable by searching from the newest scope
-    // to the oldest scope.
-    //
-    // This allows:
-    //
-    // {
-    //      set a = 20;
-    // }
-    //
-    // to temporarily hide an outer variable named a.
     Var lookup(const std::string &name)
     {
         for (auto it = m_scopes.rbegin();

@@ -14,6 +14,14 @@ struct NodeExprStringLit
 {
     std::string value;
 };
+struct NodeExprFloatLit
+{
+    std::string value;
+};
+struct NodeExprDoubleLit
+{
+    std::string value;
+};
 
 struct NodeExprIdentifier
 {
@@ -39,6 +47,8 @@ struct NodeExpr
 {
     std::variant<
         NodeExprIntLit,
+        NodeExprFloatLit,
+        NodeExprDoubleLit,
         NodeExprIdentifier,
         NodeExprStringLit,
         BinaryExpr *,

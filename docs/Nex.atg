@@ -37,7 +37,10 @@ TOKENS
 
     identifier    = letter { letter | digit }.
     int_lit       = digit { digit }.
+    float_lit     = digit { digit } "." digit { digit } "f".
+    double_lit    = digit { digit } "." digit { digit } "d".
     string_lit    = '"' { stringChar } '"'.
+    
 
 
 COMMENTS FROM "//" TO "\n"
@@ -604,7 +607,22 @@ PrimaryExpr<NodeExpr *&expr>
                   token_string(t)
               );
       .)
-
+      |
+      float_lit
+      (.
+          expr =
+             make_float_expr(
+                token_string(t)
+             );
+      .)
+      |
+      double_lit
+      (.
+          expr =
+             make_double_expr(
+                token_string(t)
+             );
+      .)
     |
 
       open_paren

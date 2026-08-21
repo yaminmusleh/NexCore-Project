@@ -21,8 +21,10 @@ inline std::string token_string(Token *token)
 extern ArenaAllocator *arena;
 extern NodeProgram program;
 
-NodeExpr *make_int_expr(const std::string &value);
-NodeExpr *make_string_expr(const std::string &value);
+NodeExpr *make_int_expr(const std::string &value);    // int value
+NodeExpr *make_string_expr(const std::string &value); // string value
+NodeExpr *make_float_expr(const std::string &value);  // float value
+NodeExpr *make_double_expr(const std::string &value); // double value
 NodeExpr *make_identifier_expr(const std::string &value);
 NodeStmnt *make_print_statement(NodeExpr *expr);
 
