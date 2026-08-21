@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <type_traits>
 #include <utility>
+#include <cstdint>
+#include <cstring>
 
 class Generator
 {
@@ -226,6 +228,70 @@ private:
         ValueType type;
     };
 
+    uint32_t float_bits(const std::string &value)
+    {
+        float f = std::stof(value);
+
+        uint32_t bits;
+        std::memcpy(&bits, &f, sizeof(bits));
+
+        return bits;
+    }
+
+    uint64_t double_bits(const std::string &value)
+    {
+        double d = std::stod(value);
+
+        uint64_t bits;
+        std::memcpy(&bits, &d, sizeof(bits));
+
+        return bits;
+    }
+
+    void convert_value(
+        ValueType from,
+        ValueType to,
+        std::string &buffer)
+    {
+        if (from == to)
+            return;
+
+        // int -> float
+        if (from == ValueType::Int &&
+            to == ValueType::Float)
+        {
+            buffer += "    cvtsi2ss xmm0, rbx\n";
+            return;
+        }
+
+        // int -> double
+        if (from == ValueType::Int &&
+            to == ValueType::Double)
+        {
+            buffer += "    cvtsi2sd xmm0, rbx\n";
+            return;
+        }
+
+        // float -> double
+        if (from == ValueType::Float &&
+            to == ValueType::Double)
+        {
+            buffer += "    cvtss2sd xmm0, xmm0\n";
+            return;
+        }
+
+        // double -> float
+        if (from == ValueType::Double &&
+            to == ValueType::Float)
+        {
+            buffer += "    cvtsd2ss xmm0, xmm0\n";
+            return;
+        }
+
+        throw std::runtime_error(
+            "Unsupported numeric conversion");
+    }
+
     void generate_if(NodeStmntIf *stmt,
                      std::string &buffer,
                      bool &has_exit)
@@ -258,44 +324,80 @@ private:
 
         has_exit = if_exit && else_exit;
     }
+    void generate_for(NodeStmntFor *stmt,
+                      std::string &buffer,
+                      bool &has_exit)
 
-    void generate_for(NodeStmntFor *stmt, std::string &buffer, bool &has_exit)
     {
-        std::string startLabel = ".L" + std::to_string(m_labelCount++);
-        std::string endLabel = ".L" + std::to_string(m_labelCount++);
+        std::string startLabel =
+            ".L" + std::to_string(m_labelCount++);
 
-        generate_statement(stmt->init, buffer, has_exit); // generate initialization once
+        std::string endLabel =
+            ".L" + std::to_string(m_labelCount++);
 
-        buffer += startLabel + ":\n"; // start of the loop
+        // 1. Generate initialization once.
+        bool init_exit = false;
 
-        generate_condition(stmt->condition, buffer, endLabel); // check condition, if false jump to endLabel
+        generate_statement(
+            stmt->init,
+            buffer,
+            init_exit);
 
+        if (init_exit)
+        {
+            has_exit = true;
+            return;
+        }
+
+        // 2. Start of loop.
+        buffer += startLabel + ":\n";
+
+        // 3. Check condition.
+        // If false, jump directly to endLabel.
+        generate_condition(
+            stmt->condition,
+            buffer,
+            endLabel);
+
+        // 4. Generate body.
         bool body_exit = false;
 
-        generate_scope(stmt->scope, buffer, body_exit); // generate the body of the loop { ... }
+        generate_scope(
+            stmt->scope,
+            buffer,
+            body_exit);
 
-        if (!body_exit)
+        // If the body called exit(), the program is already terminated.
+        if (body_exit)
         {
-            generate_statement(stmt->increment, buffer, has_exit); // generate increment statement after the body of the loop
-            // If the body did not exit the program, go back and check the condition again.
-            // this is like c++ when it checks the condition of the loop after executing the body of the loop.
-            buffer += "    jmp " + startLabel + "\n";
+            has_exit = true;
+            return;
         }
-        buffer += endLabel + ":\n";
-        has_exit = body_exit;
-        /*
-        The for loop is generated as follows:
-        1. Generate the initialization statement once before the loop starts. (generate_statement)
-        2. Generate the condition check at the start of each iteration. (generate_condition)
-        3. Generate the body of the loop. (generate_scope)
-        4. Generate the increment statement after the body of the loop. (generate_statement) its a statement because we declared it as a statement in the AST.
-        5. If the body did not exit the program, go back and check the condition again. (buffer += "    jmp " + startLabel + "\n";) go back to start_label to check the condition again.
-        6. If the condition is false, jump to the end label and exit the loop. (generate_condition will jump to endLabel if the condition is false)
-        7. The end label marks the end of the loop.
-        This is similar to how a for loop works in C++.
-        */
-    }
 
+        // 5. Generate increment.
+        bool increment_exit = false;
+
+        generate_statement(
+            stmt->increment,
+            buffer,
+            increment_exit);
+
+        if (increment_exit)
+        {
+            has_exit = true;
+            return;
+        }
+
+        // 6. Go back to the condition.
+        buffer += "    jmp " + startLabel + "\n";
+
+        // 7. Loop exit.
+        buffer += endLabel + ":\n";
+
+        // Reaching the end of a for loop does NOT mean
+        // the whole program exited.
+        has_exit = false;
+    }
     void generate_whilst(NodeStmntWhile *stmt,
                          std::string &buffer,
                          bool &has_exit)
@@ -416,23 +518,31 @@ private:
                        // set variable = expression;
                        else if constexpr (std::is_same_v<T, NodeStmntLet>)
                        {
-                           std::string name =
-                               stmt.identifier;
-                               ValueType type = get_expr_type(stmt.expr);
+                           std::string name = stmt.identifier;
+
+                           ValueType type = get_expr_type(stmt.expr);
                            generate_expr(stmt.expr, buffer);
 
-                           // Reserve 8 bytes for the variable.
-                           buffer += "    sub rsp, 8\n";
+                           size_t offset = (m_variableCount + 1) * 8;
 
-                           buffer += "    mov [rbp - ";
-                           buffer += std::to_string((m_variableCount + 1) * 8);
-                           buffer += "], rbx\n";
+                           if (type == ValueType::Int)
+                           {
+                               buffer += "    mov [rbp - ";
+                               buffer += std::to_string(offset);
+                               buffer += "], rbx\n";
+                           }
+                           else if(type == ValueType::Double)
+                           {
+                               buffer += "    movsd [rbp - ";
+                               buffer += std::to_string(offset);
+                               buffer += "], xmm0\n";
+                           }
 
                            m_variableCount++;
 
                            // Remember where this variable lives.
                            m_scopes.back()[name] =
-                               Var{m_variableCount * 8, type};
+                               Var{offset, type};
                        }
 
 
@@ -451,44 +561,69 @@ private:
                        else if constexpr (std::is_same_v<T, NodeStmntAssign>)
                        {
                            std::string name = stmt.identifier;
-
-                           generate_expr(stmt.expr, buffer);
+                       
                            Var var = lookup(name);
-
-                           buffer += "    mov [rbp - ";
-                           buffer += std::to_string(var.offset);
-                           buffer += "], rbx\n";
+                       
+                           ValueType type = get_expr_type(stmt.expr);
+                       
+                           if (type != var.type)
+                           {
+                               throw std::runtime_error(
+                                   "Type mismatch in assignment to variable: " + name
+                               );
+                           }
+                       
+                           generate_expr(stmt.expr, buffer);
+                       
+                           if(var.type == ValueType::Int)
+                           {
+                            buffer += "    mov [rbp - ";
+                            buffer += std::to_string(var.offset);
+                            buffer += "], rbx\n";
+                           }
+                           else if (var.type == ValueType::Float)
+                           {
+                            buffer += "    movss [rbp - ";
+                            buffer += std::to_string(var.offset);
+                            buffer += "], xmm0\n";
+                           }
+                           else if (var.type == ValueType::Double)
+                           {
+                            buffer += "    movss [rbp - ";
+                            buffer += std::to_string(var.offset);
+                            buffer += "], xmm0\n";
+                           }
                        }
-                      else if constexpr (std::is_same_v<T, NodeStmntPrint>)
-{
-    generate_expr(stmt.expr, buffer);
-
-    // --------------------------------------------------
+                      else if constexpr (std::is_same_v<T, NodeStmntPrint>)                      
+                      {
+                          generate_expr(stmt.expr, buffer);
+                      
+                          // --------------------------------------------------                      
     // String
     // --------------------------------------------------
-    if (std::holds_alternative<NodeExprStringLit>(
-            stmt.expr->expr))
-    {
-        auto &string =
-            std::get<NodeExprStringLit>(stmt.expr->expr);
-
-        buffer += "    mov rax, 1\n"; // sys_write
-        buffer += "    mov rdi, 1\n"; // stdout
-        buffer += "    mov rsi, rbx\n"; // string address
-        buffer += "    mov rdx, ";
-        buffer += std::to_string(string.value.size() + 1);
-        buffer += "\n";
-        buffer += "    syscall\n";
-    }
-
-    // --------------------------------------------------
-    // Integer / expression
-    // --------------------------------------------------
-    else
-    {
-        generate_print_integer(buffer);
-    }
-}
+                          if (std::holds_alternative<NodeExprStringLit>(
+                                  stmt.expr->expr))                      
+                             {
+                                 auto &string =
+                                     std::get<NodeExprStringLit>(stmt.expr->expr);
+                         
+                                 buffer += "    mov rax, 1\n"; // sys_write
+                                 buffer += "    mov rdi, 1\n"; // stdout
+                                 buffer += "    mov rsi, rbx\n"; // string address
+                                 buffer += "    mov rdx, ";
+                                 buffer += std::to_string(string.value.size() + 1);
+                                 buffer += "\n";
+                                 buffer += "    syscall\n";
+                             }
+                      
+                           // --------------------------------------------------
+                          // Integer / expression
+                          // --------------------------------------------------
+                          else
+                          {
+                             generate_print_integer(buffer);
+                          }
+                    }
                        else if constexpr (std::is_same_v<T, NodeScope *>)
                        {
                            generate_scope(stmt, buffer, has_exit);
@@ -669,6 +804,7 @@ private:
         buffer += trueLabel + ":\n";
     }
 
+    //----------------------------------------------------//
     void generate_expr(NodeExpr *expr,
                        std::string &buffer)
     {
@@ -683,28 +819,78 @@ private:
                 buffer += "\n";
             }
             
-            //float case rejection:
+            // Float literal
             else if constexpr (std::is_same_v<T, NodeExprFloatLit>)
             {
-                throw std::runtime_error(
-                  "Float code generation is not implemented yet");
+                uint32_t bits = float_bits(node.value);
+
+                buffer += "    mov eax, 0x";
+
+                char hex[16];
+                std::snprintf(
+                    hex,
+                    sizeof(hex),
+                    "%08x",
+                    bits
+                );
+                buffer += hex;
+                buffer += "\n";
             }
+            
+            // Double literal
             else if constexpr (std::is_same_v<T, NodeExprDoubleLit>)
             {
-                throw std::runtime_error(
-                  "Double code generation is not implemented yet");
+                uint64_t bits = double_bits(node.value);
+                // is used to safely inspect the raw, underlying binary bits of a 64-bit floating-point number (double) without changing its numerical value.
+
+
+                buffer += "    mov rax, 0x";
+
+                char hex[32];
+                std::snprintf(
+                    hex,
+                    sizeof(hex),
+                    "016llx",
+                    static_cast<unsigned long long>(bits)
+                );
+
+                buffer += hex;
+                buffer += "\n";
+
+                buffer += "    movq xmm0, rax\n";
             }
 
             // Identifier
             else if constexpr (std::is_same_v<T, NodeExprIdentifier>) {
                 std::string name = node.value;
 
-                Var var = lookup(name);
+                Var var = lookup(node.value);
 
+                //int
+                if(var.type == ValueType::Int)
+                {
                 buffer += "    mov rbx, [rbp - ";
                 buffer += std::to_string(var.offset);
                 buffer += "]\n";
+                }
+
+                //float
+                if(var.type == ValueType::Float)
+                {
+                buffer += "    movss xmm0, [rbp - ";
+                buffer += std::to_string(var.offset);
+                buffer += "]\n";
+                }
+
+                //double
+                if(var.type == ValueType::Int)
+                {
+                buffer += "    movsd xmm0, [rbp - ";
+                buffer += std::to_string(var.offset);
+                buffer += "]\n";
+                }
             }
+            
             // String literal
             else if constexpr (std::is_same_v<T, NodeExprStringLit>) {
                 
@@ -735,34 +921,59 @@ private:
                     );
                 }
 
-                generate_expr(node->left, buffer);
+                ValueType leftType = get_expr_type(node->left);
+                ValueType rightType = get_expr_type(node->right);
+                ValueType resultType = get_expr_type(
+                    reinterpret_cast<NodeExpr *>(node)
+                );
 
-                push_temp(buffer, "rbx");
+                // ==============================
+                // Integer Arithmetic
+                // ==============================
 
-                generate_expr(node->right, buffer);
+                if (resultType == ValueType::Int)
+                {
+                    generate_expr(node->left, buffer);
+                    buffer += "    push rbx\n";
 
-                pop_temp(buffer, "rax");
+                    generate_expr(node->right, buffer);
 
-                if (node->op == "+") {
-                    buffer += "    add rax, rbx\n";
-                } else if (node->op == "-") {
-                    buffer += "    sub rax, rbx\n";
-                } else if (node->op == "*") {
-                    buffer += "    imul rax, rbx\n";
-                } else if (node->op == "/") {
-                    buffer += "    cqo\n";
-                    buffer += "    idiv rbx\n";
-                } else if (node->op == "%") {
-                    buffer += "    cqo\n";
-                    buffer += "    idiv rbx\n";
-                    buffer += "    mov rax, rdx\n";
-                } else {
-                    throw std::runtime_error(
-                        "Unknown binary operator: " + node->op
-                    );
+                    buffer += "    pop rax\n";
+
+                    if (node->op == "+")
+                    {
+                        buffer += "    add rax, rbx\n";
+                    }
+                    else if (node->op == "-")
+                    {
+                        buffer += "    sub rax, rbx\n";
+                    }
+                    else if (node->op == "*")
+                    {
+                        buffer += "    imul rax, rbx\n";
+                    }
+                    else if (node->op == "/")
+                    {
+                        buffer += "    cqo\n";
+                        buffer += "    idiv rax, rbx\n";
+                    }
+                    else if (node->op == "%")
+                    {
+                        buffer += "    cqo\n";
+                        buffer += "    idiv rax, rbx\n";
+                        buffer += "    mov rax,rdx\n";
+                    }
+                    else
+                    {
+                        throw std::runtime_error(
+                            "Uknown integer operator: "+
+                            node->op
+                        );
+                    }
+
+                    buffer += "    mov rbx,rax\n";
+                    return;
                 }
-
-                buffer += "    mov rbx, rax\n";
             }
 
             // Unary expression
@@ -783,6 +994,7 @@ private:
             } }, expr->expr);
     }
 
+    //----------------------------------------------------//
     Var lookup(const std::string &name)
     {
         for (auto it = m_scopes.rbegin();
