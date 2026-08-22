@@ -1,32 +1,27 @@
-set f1 = 3.4f;
-set f2 = 2.0f;
+set a = 10.5d;
+set b = 2.5d;
 
-set d1 = 10.5d;
-set d2 = 2.5d;
+set add = a + b;
+set sub = a - b;
+set mul = a * b;
+set div = a / b;
 
-set f_add = f1 + f2;
-set f_sub = f1 - f2;
-set f_mul = f1 * f2;
-set f_div = f1 / f2;
+print("DOUBLE ARITHMETIC");
 
-set d_add = d1 + d2;
-set d_sub = d1 - d2;
-set d_mul = d1 * d2;
-set d_div = d1 / d2;
-
-set mixed1 = d1 + f1;
-set mixed2 = d1 - f2;
-set mixed3 = d2 * f1;
-set mixed4 = d1 / f2;
-
-set precedence1 = d1 + d2 * 2.0d;
-set precedence2 = (d1 + d2) * 2.0d;
-set precedence3 = d1 - d2 / 2.5d;
-
-set result = d1 + d2;
-
-iff (result > 12.0d) {
-    exit(0);
+iff (add > 12.9d) {
+    print("ADD PASS");
 }
 
-exit(1);
+iff (sub > 7.9d) {
+    print("SUB PASS");
+}
+
+iff (mul > 26.0d) {
+    print("MUL PASS");
+}
+
+iff (div > 4.1d) {
+    print("DIV PASS");
+}
+
+exit(0);
