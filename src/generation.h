@@ -31,6 +31,9 @@ public:
 
         std::string buffer =
             "global _start\n"
+            "section .bss\n"
+            "    .L_print_buffer resb 32\n"
+            "\n"
             "section .text\n"
             "_start:\n"
             "    push rbp\n"
@@ -95,17 +98,9 @@ private:
         std::string positive =
             ".L_print_positive_" + std::to_string(m_labelCount++);
 
-        /*
-            rbx = integer to print
-
-            Reserve 32 bytes on the stack for the
-            temporary string buffer.
-        */
-
-        buffer += "    sub rsp, 32\n";
-
-        // r12 points to the end of our buffer.
-        buffer += "    lea r12, [rsp + 32]\n";
+        // rbx = integer to print
+        // r12 points to the end of our dedicated print buffer.
+        buffer += "    lea r12, [rel .L_print_buffer + 32]\n";
 
         // rax = integer
         buffer += "    mov rax, rbx\n";
@@ -177,7 +172,7 @@ private:
         buffer += "    mov rdi, 1\n";
         buffer += "    mov rsi, r12\n";
 
-        buffer += "    lea rdx, [rsp + 32]\n";
+        buffer += "    lea rdx, [rel .L_print_buffer + 32]\n";
         buffer += "    sub rdx, r12\n";
 
         buffer += "    syscall\n";
@@ -185,17 +180,13 @@ private:
         // --------------------------------------------------
         // Newline
         // --------------------------------------------------
-        buffer += "    mov byte [rsp], 10\n";
-
+        buffer += "    mov byte [rel .L_print_buffer], 10\n";
         buffer += "    mov rax, 1\n";
         buffer += "    mov rdi, 1\n";
-        buffer += "    mov rsi, rsp\n";
+        buffer += "    lea rsi, [rel .L_print_buffer]\n";
         buffer += "    mov rdx, 1\n";
-
         buffer += "    syscall\n";
 
-        // Free temporary buffer.
-        buffer += "    add rsp, 32\n";
     }
     // Generates temporary values.
     //

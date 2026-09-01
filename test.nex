@@ -1,27 +1,16 @@
-set a = 10.5d;
-set b = 2.5d;
+set x = 10;
+set y = 3;
 
-set add = a + b;
-set sub = a - b;
-set mul = a * b;
-set div = a / b;
+x = x + y;
+print(x);
 
-print("DOUBLE ARITHMETIC");
+x = x * 2;
+print(x);
 
-iff (add > 12.9d) {
-    print("ADD PASS");
-}
+x = x - 5;
+print(x);
 
-iff (sub > 7.9d) {
-    print("SUB PASS");
-}
-
-iff (mul > 26.0d) {
-    print("MUL PASS");
-}
-
-iff (div > 4.1d) {
-    print("DIV PASS");
-}
+x = x / 3;
+print(x);
 
 exit(0);
