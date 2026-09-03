@@ -1,16 +1,64 @@
-set x = 10;
-set y = 3;
+set score = 85;
+set attempts = 3;
+set counter = 0;
 
-x = x + y;
-print(x);
+set ratio = 2.5f;
+set precision = 10.75d;
 
-x = x * 2;
-print(x);
+print("=== NexCore Demo ===");
 
-x = x - 5;
-print(x);
+whilst (attempts > 0) {
 
-x = x / 3;
-print(x);
+    // Arithmetic + assignment
+    score = score + 5;
+    counter = counter + 1;
 
+    // Modulo + logical AND
+    iff (score >= 80 && score <= 100) {
+        print("High score");
+
+        iff (score % 5 == 0) {
+            print("Score is divisible by 5");
+        } otherwise {
+            print("Score is not divisible by 5");
+        }
+
+    } otherwise iff (score >= 60) {
+        print("Medium score");
+    } otherwise {
+        print("Low score");
+    }
+
+    // Logical OR
+    iff (attempts == 1 || counter > 2) {
+        print("Final attempts");
+    }
+
+    // Logical NOT + unary minus
+    set negative = -counter;
+
+    iff (!negative) {
+        print("Counter is zero");
+    }
+
+    // Floating-point arithmetic
+    ratio = ratio * 2.0f;
+    precision = precision / 2.0d;
+
+    attempts = attempts - 1;
+}
+
+// For loop + nested scope
+for (set i = 1; i <= 5; i = i + 1) {
+
+    set doubled = i * 2;
+
+    iff (doubled > 5 && doubled < 10) {
+        print("Inside nested for scope");
+    } otherwise {
+        print(doubled);
+    }
+}
+
+print("=== Demo Complete ===");
 exit(0);
