@@ -1,10 +1,10 @@
-# 🚀 Nex Compiler
+# 🚀 NexCore Compiler
 
 ![Language](https://shields.io)
 ![Grammar](https://shields.io)
 ![Build](https://shields.io)
 
-**Nex** is a custom programming language compiler utilizing an `.atg` (Attributed Grammar) definition configured for compiler generators like Coco/R. It parses high-level procedural syntax into an Abstract Syntax Tree (AST) represented via structured C++ nodes.
+**NexCore** is a custom programming language compiler utilizing an `.atg` (Attributed Grammar) definition configured for compiler generators like Coco/R. It parses high-level procedural syntax into an Abstract Syntax Tree (AST) represented via structured C++ nodes.
 
 ---
 
