@@ -13,7 +13,8 @@ extern NodeProgram program;
 
 int main(int argc, char *argv[])
 {
-    if (argc != 2) {
+    if (argc != 2)
+    {
         std::cerr << "Incorrect usage.\n";
         std::cerr << "Correct usage: nexcore <input.nex>\n";
         return EXIT_FAILURE;
@@ -24,7 +25,8 @@ int main(int argc, char *argv[])
 
     FILE *input = fopen(argv[1], "rb");
 
-    if (!input) {
+    if (!input)
+    {
         std::cerr << "Failed to open " << argv[1] << "\n";
         return EXIT_FAILURE;
     }
@@ -33,23 +35,23 @@ int main(int argc, char *argv[])
 
     Parser parser(&scanner);
 
-
-
     parser.Parse();
 
-
-
     fclose(input);
-
+    if (parser.errors->count > 0)
+    {
+        std::cerr << parser.errors->count << " syntax error(s); nothing was generated.\n";
+        return EXIT_FAILURE;
+    }
 
     Generator generator(std::move(program));
-
 
     std::string assembly = generator.generate();
 
     std::ofstream output("out.asm");
 
-    if (!output) {
+    if (!output)
+    {
         std::cerr << "Failed to create out.asm\n";
         return EXIT_FAILURE;
     }
@@ -57,12 +59,14 @@ int main(int argc, char *argv[])
     output << assembly;
     output.close();
 
-    if (system("nasm -f elf64 out.asm -o out.o") != 0) {
+    if (system("nasm -f elf64 out.asm -o out.o") != 0)
+    {
         std::cerr << "NASM failed.\n";
         return EXIT_FAILURE;
     }
 
-    if (system("ld -o out out.o") != 0) {
+    if (system("ld -o out out.o") != 0)
+    {
         std::cerr << "Linker failed.\n";
         return EXIT_FAILURE;
     }
