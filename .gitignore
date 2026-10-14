@@ -3,3 +3,4 @@ cmake-build-relwithdebinfo/
 build/
 *.o
 
+build-studio/
