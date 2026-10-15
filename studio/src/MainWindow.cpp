@@ -7,7 +7,6 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
-#include <QFontDatabase>
 #include <QKeySequence>
 #include <QLabel>
 #include <QMenu>
@@ -19,6 +18,10 @@
 #include <QStatusBar>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QToolBar>
+
+#include "CodeEditor.h"
+#include "NexHighlighter.h"
 
 namespace {
 
@@ -32,24 +35,22 @@ QString sourceFilter()
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
 {
-    m_editor = new QPlainTextEdit(this);
-    m_editor->setFrameShape(QFrame::NoFrame);
-    m_editor->setLineWrapMode(QPlainTextEdit::NoWrap);
-
-    QFont font = QFontDatabase::systemFont(QFontDatabase::FixedFont);
-    font.setPointSize(11);
-    m_editor->setFont(font);
-    m_editor->setTabStopDistance(
-        4 * m_editor->fontMetrics().horizontalAdvance(QLatin1Char(' ')));
-
+    m_editor = new CodeEditor(this);
     setCentralWidget(m_editor);
 
-    createActions();
+    // The highlighter is a child of the document and is deleted with it.
+    new NexHighlighter(m_editor->document());
+
+    createFileActions();
+    createEditActions();
+    createToolBar();
     createStatusBar();
 
     connect(m_editor->document(), &QTextDocument::modificationChanged,
             this, &QWidget::setWindowModified);
     connect(m_editor, &QPlainTextEdit::cursorPositionChanged,
+            this, &MainWindow::updateCursorStatus);
+    connect(m_editor, &QPlainTextEdit::selectionChanged,
             this, &MainWindow::updateCursorStatus);
 
     setCurrentFile(QString());
@@ -59,26 +60,74 @@ MainWindow::MainWindow(QWidget *parent)
     setMinimumSize(800, 500);
 }
 
-void MainWindow::createActions()
+QAction *MainWindow::createAction(QMenu *menu, const QString &text,
+                                  QKeySequence::StandardKey key)
+{
+    auto *action = new QAction(text, this);
+    action->setShortcut(key);
+    menu->addAction(action);
+    return action;
+}
+
+void MainWindow::createFileActions()
 {
     QMenu *fileMenu = menuBar()->addMenu(tr("&File"));
 
-    auto add = [this, fileMenu](const QString &text,
-                                QKeySequence::StandardKey key, auto slot) {
-        auto *action = new QAction(text, this);
-        action->setShortcut(key);
-        connect(action, &QAction::triggered, this, slot);
-        fileMenu->addAction(action);
-    };
+    m_newAct = createAction(fileMenu, tr("&New"), QKeySequence::New);
+    m_openAct = createAction(fileMenu, tr("&Open..."), QKeySequence::Open);
+    m_openAct->setIconText(tr("Open"));
+    fileMenu->addSeparator();
+    m_saveAct = createAction(fileMenu, tr("&Save"), QKeySequence::Save);
+    QAction *saveAsAct = createAction(fileMenu, tr("Save &As..."), QKeySequence::SaveAs);
+    fileMenu->addSeparator();
+    QAction *quitAct = createAction(fileMenu, tr("&Quit"), QKeySequence::Quit);
 
-    add(tr("&New"), QKeySequence::New, &MainWindow::newFile);
-    add(tr("&Open..."), QKeySequence::Open, &MainWindow::openFile);
-    fileMenu->addSeparator();
-    add(tr("&Save"), QKeySequence::Save, &MainWindow::saveFile);
-    add(tr("Save &As..."), QKeySequence::SaveAs, &MainWindow::saveFileAs);
-    fileMenu->addSeparator();
+    connect(m_newAct, &QAction::triggered, this, &MainWindow::newFile);
+    connect(m_openAct, &QAction::triggered, this, &MainWindow::openFile);
+    connect(m_saveAct, &QAction::triggered, this, &MainWindow::saveFile);
+    connect(saveAsAct, &QAction::triggered, this, &MainWindow::saveFileAs);
     // close() goes through closeEvent(), so unsaved changes are checked.
-    add(tr("&Quit"), QKeySequence::Quit, &QWidget::close);
+    connect(quitAct, &QAction::triggered, this, &QWidget::close);
+}
+
+void MainWindow::createEditActions()
+{
+    QMenu *editMenu = menuBar()->addMenu(tr("&Edit"));
+
+    QAction *undoAct = createAction(editMenu, tr("&Undo"), QKeySequence::Undo);
+    QAction *redoAct = createAction(editMenu, tr("&Redo"), QKeySequence::Redo);
+    editMenu->addSeparator();
+    QAction *cutAct = createAction(editMenu, tr("Cu&t"), QKeySequence::Cut);
+    QAction *copyAct = createAction(editMenu, tr("&Copy"), QKeySequence::Copy);
+    QAction *pasteAct = createAction(editMenu, tr("&Paste"), QKeySequence::Paste);
+    editMenu->addSeparator();
+    QAction *selectAllAct = createAction(editMenu, tr("Select &All"), QKeySequence::SelectAll);
+
+    connect(undoAct, &QAction::triggered, m_editor, &QPlainTextEdit::undo);
+    connect(redoAct, &QAction::triggered, m_editor, &QPlainTextEdit::redo);
+    connect(cutAct, &QAction::triggered, m_editor, &QPlainTextEdit::cut);
+    connect(copyAct, &QAction::triggered, m_editor, &QPlainTextEdit::copy);
+    connect(pasteAct, &QAction::triggered, m_editor, &QPlainTextEdit::paste);
+    connect(selectAllAct, &QAction::triggered, m_editor, &QPlainTextEdit::selectAll);
+
+    undoAct->setEnabled(false);
+    redoAct->setEnabled(false);
+    cutAct->setEnabled(false);
+    copyAct->setEnabled(false);
+    connect(m_editor, &QPlainTextEdit::undoAvailable, undoAct, &QAction::setEnabled);
+    connect(m_editor, &QPlainTextEdit::redoAvailable, redoAct, &QAction::setEnabled);
+    connect(m_editor, &QPlainTextEdit::copyAvailable, cutAct, &QAction::setEnabled);
+    connect(m_editor, &QPlainTextEdit::copyAvailable, copyAct, &QAction::setEnabled);
+}
+
+void MainWindow::createToolBar()
+{
+    QToolBar *toolBar = addToolBar(tr("Main"));
+    toolBar->setMovable(false);
+    toolBar->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    toolBar->addAction(m_newAct);
+    toolBar->addAction(m_openAct);
+    toolBar->addAction(m_saveAct);
 }
 
 void MainWindow::createStatusBar()
@@ -87,9 +136,14 @@ void MainWindow::createStatusBar()
     // Ignored lets a long path shrink instead of widening the window.
     m_fileLabel->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Preferred);
 
+    m_infoLabel = new QLabel(tr("UTF-8  \u00b7  LF  \u00b7  Spaces: %1").arg(CodeEditor::kIndentWidth), this);
+    m_infoLabel->setContentsMargins(8, 0, 8, 0);
+
     m_cursorLabel = new QLabel(this);
+    m_cursorLabel->setContentsMargins(8, 0, 8, 0);
 
     statusBar()->addWidget(m_fileLabel, 1);
+    statusBar()->addPermanentWidget(m_infoLabel);
     statusBar()->addPermanentWidget(m_cursorLabel);
 }
 
@@ -174,9 +228,15 @@ bool MainWindow::saveFileAs()
 void MainWindow::updateCursorStatus()
 {
     const QTextCursor cursor = m_editor->textCursor();
-    m_cursorLabel->setText(tr("Ln %1, Col %2")
-                               .arg(cursor.blockNumber() + 1)
-                               .arg(cursor.positionInBlock() + 1));
+    QString text = tr("Ln %1, Col %2")
+                       .arg(cursor.blockNumber() + 1)
+                       .arg(cursor.positionInBlock() + 1);
+
+    const int selected = cursor.selectionEnd() - cursor.selectionStart();
+    if (selected > 0)
+        text += tr("  (%1 selected)").arg(selected);
+
+    m_cursorLabel->setText(text);
 }
 
 bool MainWindow::maybeSave()

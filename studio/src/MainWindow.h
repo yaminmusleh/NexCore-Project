@@ -1,11 +1,14 @@
 #pragma once
 
+#include <QKeySequence>
 #include <QMainWindow>
 #include <QString>
 
+class CodeEditor;
+class QAction;
 class QCloseEvent;
 class QLabel;
-class QPlainTextEdit;
+class QMenu;
 
 class MainWindow : public QMainWindow
 {
@@ -25,8 +28,12 @@ private slots:
     void updateCursorStatus();
 
 private:
-    void createActions();
+    void createFileActions();
+    void createEditActions();
+    void createToolBar();
     void createStatusBar();
+    QAction *createAction(QMenu *menu, const QString &text,
+                          QKeySequence::StandardKey key);
 
     bool maybeSave();
     bool loadFile(const QString &path);
@@ -35,8 +42,12 @@ private:
     QString startDirectory() const;
     QString displayName() const;
 
-    QPlainTextEdit *m_editor = nullptr;
+    CodeEditor *m_editor = nullptr;
+    QAction *m_newAct = nullptr;
+    QAction *m_openAct = nullptr;
+    QAction *m_saveAct = nullptr;
     QLabel *m_fileLabel = nullptr;
+    QLabel *m_infoLabel = nullptr;
     QLabel *m_cursorLabel = nullptr;
 
     // Absolute path of the open file; empty while the buffer is untitled.

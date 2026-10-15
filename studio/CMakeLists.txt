@@ -13,6 +13,10 @@ qt_add_executable(nexcore-studio
     src/main.cpp
     src/MainWindow.h
     src/MainWindow.cpp
+    src/CodeEditor.h
+    src/CodeEditor.cpp
+    src/NexHighlighter.h
+    src/NexHighlighter.cpp
 )
 
 target_link_libraries(nexcore-studio PRIVATE Qt6::Widgets)
