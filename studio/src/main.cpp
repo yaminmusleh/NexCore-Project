@@ -96,7 +96,29 @@ namespace
             "QStatusBar { border-top: 1px solid #343842; }"
             "QStatusBar::item { border: none; }"
             "QToolTip { color: #d7dae0; background-color: #2a2d34;"
-            " border: 1px solid #343842; padding: 4px; }"));
+            " border: 1px solid #343842; padding: 4px; }"
+            "QSplitter::handle { background: #2a2d34; }"
+            "QWidget#sidebar { background: #1b1d22; }"
+            "QLabel#sectionHeader { color: #6b7080; font-size: 8pt;"
+            " font-weight: 600; padding: 10px 12px 4px 12px; }"
+            "QLabel#sidebarHint { color: #6b7080; }"
+            "QListWidget, QTreeView { background: #1b1d22; border: none;"
+            " outline: none; }"
+            "QListWidget::item { padding-left: 12px; background: transparent; }"
+            "QTreeView::item { padding: 3px 0; }"
+            "QListWidget::item:selected, QTreeView::item:selected {"
+            " background: #2b2f38; color: #ffffff; }"
+            "QListWidget::item:hover:!selected, QTreeView::item:hover:!selected {"
+            " background: #23262c; }"
+            "QTabWidget::pane { border: none; }"
+            "QTabBar::tab { background: #1e2024; color: #8b90a0;"
+            " padding: 7px 14px; border: none; border-right: 1px solid #2a2d34; }"
+            "QTabBar::tab:selected { background: #17181c; color: #d7dae0;"
+            " border-top: 2px solid #35c5b2; padding-top: 5px; }"
+            "QTabBar::tab:hover:!selected { background: #23262c; }"
+            "QToolButton#tabClose { border: none; border-radius: 3px;"
+            " padding: 0 4px; color: #6b7080; font-size: 11pt; }"
+            "QToolButton#tabClose:hover { background: #343842; color: #ffffff; }"));
     }
 
 } // namespace
@@ -114,6 +136,11 @@ int main(int argc, char *argv[])
 
     MainWindow window;
     window.show();
+
+    // Files named on the command line open in tabs.
+    const QStringList files = app.arguments().mid(1);
+    for (const QString &file : files)
+        window.openPath(file);
 
     return app.exec();
 }

@@ -1,6 +1,7 @@
 #include "CodeEditor.h"
 
 #include <QColor>
+#include <QFileInfo>
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontMetrics>
@@ -311,4 +312,9 @@ bool CodeEditor::dedentForClosingBrace()
     cursor.endEditBlock();
     setTextCursor(cursor);
     return true;
+}
+
+QString CodeEditor::displayName() const
+{
+    return m_filePath.isEmpty() ? m_untitledName : QFileInfo(m_filePath).fileName();
 }

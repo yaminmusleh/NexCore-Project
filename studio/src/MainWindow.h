@@ -9,6 +9,9 @@ class QAction;
 class QCloseEvent;
 class QLabel;
 class QMenu;
+class QSplitter;
+class QTabWidget;
+class Sidebar;
 
 class MainWindow : public QMainWindow
 {
@@ -17,39 +20,65 @@ class MainWindow : public QMainWindow
 public:
     explicit MainWindow(QWidget *parent = nullptr);
 
+    // Opens `path` in a tab, or switches to its tab if it is already open.
+    bool openPath(const QString &path);
+
 protected:
     void closeEvent(QCloseEvent *event) override;
 
 private slots:
     void newFile();
-    void openFile();
+    void openFiles();
+    void openFolder();
     bool saveFile();
     bool saveFileAs();
+    void closeCurrentTab();
+    void closeTab(int index);
+    void onCurrentTabChanged(int index);
     void updateCursorStatus();
+    void refreshSidebar();
 
 private:
     void createFileActions();
     void createEditActions();
+    void createViewActions();
     void createToolBar();
     void createStatusBar();
     QAction *createAction(QMenu *menu, const QString &text,
-                          QKeySequence::StandardKey key);
+                          const QKeySequence &key = QKeySequence());
 
-    bool maybeSave();
-    bool loadFile(const QString &path);
-    bool writeFile(const QString &path);
-    void setCurrentFile(const QString &path);
-    QString startDirectory() const;
-    QString displayName() const;
+    CodeEditor *currentEditor() const;
+    CodeEditor *editorAt(int index) const;
+    CodeEditor *editorForPath(const QString &path) const;
+    CodeEditor *pristineEditor() const;
+    CodeEditor *addEditor();
 
-    CodeEditor *m_editor = nullptr;
+    void updateTab(CodeEditor *editor);
+    void updateWindowState();
+    void updateEditActions();
+
+    bool maybeSave(CodeEditor *editor);
+    bool saveEditor(CodeEditor *editor);
+    bool saveEditorAs(CodeEditor *editor);
+    bool writeFile(CodeEditor *editor, const QString &path);
+    QString startDirectory(const CodeEditor *editor) const;
+
+    QSplitter *m_splitter = nullptr;
+    Sidebar *m_sidebar = nullptr;
+    QTabWidget *m_tabs = nullptr;
+
     QAction *m_newAct = nullptr;
     QAction *m_openAct = nullptr;
     QAction *m_saveAct = nullptr;
+    QAction *m_undoAct = nullptr;
+    QAction *m_redoAct = nullptr;
+    QAction *m_cutAct = nullptr;
+    QAction *m_copyAct = nullptr;
+    QAction *m_toggleSidebarAct = nullptr;
+
     QLabel *m_fileLabel = nullptr;
     QLabel *m_infoLabel = nullptr;
     QLabel *m_cursorLabel = nullptr;
 
-    // Absolute path of the open file; empty while the buffer is untitled.
-    QString m_currentFile;
+    int m_untitledCounter = 0;
 };

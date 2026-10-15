@@ -19,6 +19,13 @@ public:
 
     int lineNumberAreaWidth() const;
 
+    // The file this editor is bound to; empty for a buffer that was never saved.
+    QString filePath() const { return m_filePath; }
+    void setFilePath(const QString &path) { m_filePath = path; }
+    void setUntitledName(const QString &name) { m_untitledName = name; }
+    // File name for tabs and titles ("untitled.nex" for an unsaved buffer).
+    QString displayName() const;
+
     // Called by the gutter widget; not meant to be called from elsewhere.
     void lineNumberAreaPaintEvent(QPaintEvent *event);
 
@@ -38,4 +45,6 @@ private:
     bool dedentForClosingBrace();
 
     QWidget *m_lineNumberArea = nullptr;
+    QString m_filePath;
+    QString m_untitledName;
 };
