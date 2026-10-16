@@ -13,6 +13,8 @@ qt_add_executable(nexcore-studio
     src/main.cpp
     src/MainWindow.h
     src/MainWindow.cpp
+    src/BuildController.h
+    src/BuildController.cpp
     src/CodeEditor.h
     src/CodeEditor.cpp
     src/FindBar.h

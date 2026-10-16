@@ -14,6 +14,7 @@
 #include <QMenuBar>
 #include <QMessageBox>
 #include <QPlainTextEdit>
+#include <QPushButton>
 #include <QSaveFile>
 #include <QSizePolicy>
 #include <QSplitter>
@@ -29,6 +30,7 @@
 #include "CodeEditor.h"
 #include "FindBar.h"
 #include "NexHighlighter.h"
+#include "OutputPanel.h"
 #include "Sidebar.h"
 
 namespace
@@ -90,6 +92,7 @@ MainWindow::MainWindow(QWidget *parent)
 
     createFileActions();
     createEditActions();
+    createBuildActions();
     createViewActions();
     createToolBar();
     createStatusBar();
@@ -107,6 +110,8 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_output, &OutputPanel::hideRequested, this, [this]
             { m_toggleOutputAct->setChecked(false); });
     connect(m_output, &OutputPanel::maximizeToggled, this, &MainWindow::setOutputMaximized);
+
+    createBuildController();
 
     addEditor();
 
@@ -244,6 +249,10 @@ void MainWindow::createToolBar()
     toolBar->addAction(m_newAct);
     toolBar->addAction(m_openAct);
     toolBar->addAction(m_saveAct);
+    toolBar->addSeparator();
+    toolBar->addAction(m_buildAct);
+    toolBar->addAction(m_runAct);
+    toolBar->addAction(m_stopAct);
 }
 
 void MainWindow::createStatusBar()
@@ -259,6 +268,10 @@ void MainWindow::createStatusBar()
     m_cursorLabel->setContentsMargins(8, 0, 8, 0);
 
     statusBar()->addWidget(m_fileLabel, 1);
+    m_buildStatusLabel = new QLabel(tr("Ready"), this);
+    m_buildStatusLabel->setContentsMargins(8, 0, 8, 0);
+
+    statusBar()->addPermanentWidget(m_buildStatusLabel);
     statusBar()->addPermanentWidget(m_infoLabel);
     statusBar()->addPermanentWidget(m_cursorLabel);
 }
@@ -713,9 +726,197 @@ void MainWindow::setOutputMaximized(bool maximized)
     }
 }
 
-void MainWindow::closeCurrentTab()
+// ---- build, run and stop -----------------------------------------------------
 
-    void MainWindow::closeTab(int index)
+void MainWindow::createBuildActions()
+{
+    QMenu *buildMenu = menuBar()->addMenu(tr("&Build"));
+
+    m_buildAct = createAction(buildMenu, tr("&Build"), QKeySequence(Qt::Key_F7));
+    m_runAct = createAction(buildMenu, tr("&Run"), QKeySequence(Qt::Key_F5));
+    m_stopAct = createAction(buildMenu, tr("&Stop"), QKeySequence(Qt::SHIFT | Qt::Key_F5));
+    buildMenu->addSeparator();
+    QAction *compilerAct = createAction(buildMenu, tr("Set &Compiler Path..."));
+
+    m_stopAct->setEnabled(false);
+
+    connect(m_buildAct, &QAction::triggered, this, [this]
+            { startBuild(false); });
+    connect(m_runAct, &QAction::triggered, this, [this]
+            { startBuild(true); });
+    connect(m_stopAct, &QAction::triggered, this, [this]
+            {
+        if (m_build)
+            m_build->stop(); });
+    connect(compilerAct, &QAction::triggered, this, &MainWindow::chooseCompiler);
+}
+
+void MainWindow::createBuildController()
+{
+    m_build = new BuildController(this);
+    m_build->setCompilerPath(BuildController::locateCompiler());
+
+    connect(m_build, &BuildController::stateChanged, this, [this](BuildController::State state)
+            {
+        updateBuildActions();
+        // Set directly: setBuildStatus() would trim the dots.
+        if (state == BuildController::State::Building)
+            m_buildStatusLabel->setText(tr("Building..."));
+        else if (state == BuildController::State::Running)
+            m_buildStatusLabel->setText(tr("Running...")); });
+
+    connect(m_build, &BuildController::buildStarted, this, [this](const QString &commandLine)
+            { m_output->appendBuildOutput(QStringLiteral("$ ") + commandLine + QLatin1Char('\n'),
+                                          OutputPanel::Kind::Info); });
+    connect(m_build, &BuildController::buildOutput, this, [this](const QString &text, bool isError)
+            { m_output->appendBuildOutput(text, isError ? OutputPanel::Kind::Error
+                                                        : OutputPanel::Kind::Normal); });
+    connect(m_build, &BuildController::buildFinished, this, &MainWindow::onBuildFinished);
+
+    connect(m_build, &BuildController::programStarted, this, [this]
+            {
+        m_programAtLineStart = true;
+        m_output->showTab(OutputPanel::Tab::Program); });
+    connect(m_build, &BuildController::programOutput, this, [this](const QString &text, bool isError)
+            {
+        m_output->appendProgramOutput(text, isError ? OutputPanel::Kind::Error
+                                                    : OutputPanel::Kind::Normal);
+        if (!text.isEmpty())
+            m_programAtLineStart = text.endsWith(QLatin1Char('\n')); });
+    connect(m_build, &BuildController::programFinished, this, &MainWindow::onProgramFinished);
+}
+
+void MainWindow::startBuild(bool run)
+{
+    if (m_build->isBusy())
+        return;
+
+    CodeEditor *editor = currentEditor();
+    if (!editor)
+        return;
+
+    // The compiler reads the file from disk, so save first. An untitled buffer
+    // opens Save As; cancelling that cancels the build.
+    if (editor->filePath().isEmpty() || editor->document()->isModified())
+    {
+        if (!saveEditor(editor))
+            return;
+    }
+
+    if (!ensureCompiler())
+        return;
+
+    m_buildSource = editor->filePath();
+    m_output->clearAll();
+    m_output->showTab(OutputPanel::Tab::Build);
+    m_toggleOutputAct->setChecked(true); // make sure the panel is visible
+    m_build->build(m_buildSource, run);
+}
+
+bool MainWindow::ensureCompiler()
+{
+    if (BuildController::isUsableCompiler(m_build->compilerPath()))
+        return true;
+
+    const QString found = BuildController::locateCompiler();
+    if (!found.isEmpty())
+    {
+        m_build->setCompilerPath(found);
+        return true;
+    }
+
+    QMessageBox box(QMessageBox::Warning, tr("Compiler not found"),
+                    tr("NexCore Studio could not find the NexCore compiler (nexc).\n\n"
+                       "Build it first, for example:\n"
+                       "    cmake -S . -B build && cmake --build build\n\n"
+                       "Then locate the nexc executable."),
+                    QMessageBox::Cancel, this);
+    QPushButton *locateButton = box.addButton(tr("Locate nexc..."), QMessageBox::AcceptRole);
+    box.exec();
+
+    return box.clickedButton() == locateButton && chooseCompiler();
+}
+
+bool MainWindow::chooseCompiler()
+{
+    const QString current = m_build->compilerPath();
+    const QString startDir = current.isEmpty() ? QDir::homePath()
+                                               : QFileInfo(current).absolutePath();
+
+    const QString path = QFileDialog::getOpenFileName(
+        this, tr("Locate the NexCore compiler (nexc)"), startDir);
+    if (path.isEmpty())
+        return false;
+
+    if (!BuildController::isUsableCompiler(path))
+    {
+        QMessageBox::warning(this, tr("Not an executable"),
+                             tr("\"%1\" is not an executable file.")
+                                 .arg(QDir::toNativeSeparators(path)));
+        return false;
+    }
+
+    BuildController::saveCompilerPath(path);
+    m_build->setCompilerPath(path);
+    statusBar()->showMessage(tr("Compiler: %1").arg(QDir::toNativeSeparators(path)), 5000);
+    return true;
+}
+
+void MainWindow::updateBuildActions()
+{
+    const bool busy = m_build && m_build->isBusy();
+    m_buildAct->setEnabled(!busy);
+    m_runAct->setEnabled(!busy);
+    m_stopAct->setEnabled(busy);
+}
+
+void MainWindow::setBuildStatus(const QString &text)
+{
+    QString status = text;
+    if (status.endsWith(QLatin1Char('.')))
+        status.chop(1);
+    m_buildStatusLabel->setText(status);
+}
+
+void MainWindow::onBuildFinished(bool success, const QString &summary,
+                                 const QList<BuildController::Diagnostic> &diagnostics)
+{
+    m_output->appendBuildOutput(summary + QLatin1Char('\n'),
+                                success ? OutputPanel::Kind::Success : OutputPanel::Kind::Error);
+
+    QList<OutputPanel::Problem> problems;
+    for (const BuildController::Diagnostic &diagnostic : diagnostics)
+    {
+        problems.append({diagnostic.line > 0 ? m_buildSource : QString(), diagnostic.line,
+                         diagnostic.column, diagnostic.message, true});
+    }
+    m_output->setProblems(problems);
+
+    setBuildStatus(summary);
+}
+
+void MainWindow::onProgramFinished(const QString &summary, bool success, bool stopped)
+{
+    // Put the summary on its own line, even if the program did not end its
+    // last line.
+    if (!m_programAtLineStart)
+        m_output->appendProgramOutput(QStringLiteral("\n"), OutputPanel::Kind::Info);
+
+    m_output->appendProgramOutput(
+        QStringLiteral("[%1]\n").arg(summary),
+        stopped ? OutputPanel::Kind::Info
+                : (success ? OutputPanel::Kind::Success : OutputPanel::Kind::Error));
+    m_programAtLineStart = true;
+
+    setBuildStatus(summary);
+}
+
+void MainWindow::closeCurrentTab()
+{
+    closeTab(m_tabs->currentIndex());
+}
+
+void MainWindow::closeTab(int index)
 {
     CodeEditor *editor = editorAt(index);
     if (!editor || !maybeSave(editor))

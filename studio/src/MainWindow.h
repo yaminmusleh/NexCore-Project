@@ -5,6 +5,8 @@
 #include <QMainWindow>
 #include <QString>
 
+#include "BuildController.h"
+
 class CodeEditor;
 class CodeEditor;
 class FindBar;
@@ -45,10 +47,21 @@ private slots:
     void setOutputVisible(bool visible);
     void setOutputMaximized(bool maximized);
 
+    bool chooseCompiler();
+    void onBuildFinished(bool success, const QString &summary,
+                         const QList<BuildController::Diagnostic> &diagnostics);
+    void onProgramFinished(const QString &summary, bool success, bool stopped);
+
 private:
     void createFileActions();
     void createEditActions();
     void createViewActions();
+    void createBuildActions();
+    void createBuildController();
+    void startBuild(bool run);
+    bool ensureCompiler();
+    void updateBuildActions();
+    void setBuildStatus(const QString &text);
     void createToolBar();
     void createStatusBar();
     QAction *createAction(QMenu *menu, const QString &text,
@@ -74,6 +87,13 @@ private:
     Sidebar *m_sidebar = nullptr;
     FindBar *m_findBar = nullptr;
     OutputPanel *m_output = nullptr;
+    BuildController *m_build = nullptr;
+    QAction *m_buildAct = nullptr;
+    QAction *m_runAct = nullptr;
+    QAction *m_stopAct = nullptr;
+    QLabel *m_buildStatusLabel = nullptr;
+    QString m_buildSource; // the file the current/last build was started for
+    bool m_programAtLineStart = true;
     QSplitter *m_editorSplitter = nullptr;
     QList<int> m_savedSplitterSizes;
     QTabWidget *m_tabs = nullptr;
