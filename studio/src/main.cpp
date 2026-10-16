@@ -116,9 +116,26 @@ namespace
             "QTabBar::tab:selected { background: #17181c; color: #d7dae0;"
             " border-top: 2px solid #35c5b2; padding-top: 5px; }"
             "QTabBar::tab:hover:!selected { background: #23262c; }"
-            "QToolButton#tabClose { border: none; border-radius: 3px;"
-            " padding: 0 4px; color: #6b7080; font-size: 11pt; }"
-            "QToolButton#tabClose:hover { background: #343842; color: #ffffff; }"));
+            "QToolButton#tabClose, QToolButton#findClose { border: none;"
+            " border-radius: 3px; padding: 0 4px; color: #6b7080;"
+            " font-size: 11pt; }"
+            "QToolButton#tabClose:hover, QToolButton#findClose:hover {"
+            " background: #343842; color: #ffffff; }"
+            "QWidget#findBar { background: #1e2024;"
+            " border-top: 1px solid #2a2d34; }"
+            "QLineEdit { background: #17181c; border: 1px solid #343842;"
+            " border-radius: 3px; padding: 3px 6px;"
+            " selection-background-color: #35c5b2; selection-color: #0f1114; }"
+            "QLineEdit:focus { border-color: #35c5b2; }"
+            "QPushButton { background: #2a2d34; border: 1px solid #343842;"
+            " border-radius: 3px; padding: 3px 12px; }"
+            "QPushButton:hover { background: #343842; }"
+            "QPushButton:pressed { background: #23262c; }"
+            "QCheckBox::indicator { width: 14px; height: 14px;"
+            " border: 1px solid #4a4f5c; border-radius: 3px;"
+            " background: #17181c; }"
+            "QCheckBox::indicator:checked { background: #35c5b2;"
+            " border-color: #35c5b2; }"));
     }
 
 } // namespace

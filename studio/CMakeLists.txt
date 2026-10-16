@@ -15,6 +15,8 @@ qt_add_executable(nexcore-studio
     src/MainWindow.cpp
     src/CodeEditor.h
     src/CodeEditor.cpp
+    src/FindBar.h
+    src/FindBar.cpp
     src/NexHighlighter.h
     src/NexHighlighter.cpp
     src/Sidebar.h

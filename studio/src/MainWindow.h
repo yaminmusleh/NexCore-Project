@@ -5,6 +5,8 @@
 #include <QString>
 
 class CodeEditor;
+class CodeEditor;
+class FindBar;
 class QAction;
 class QCloseEvent;
 class QLabel;
@@ -65,6 +67,7 @@ private:
 
     QSplitter *m_splitter = nullptr;
     Sidebar *m_sidebar = nullptr;
+    FindBar *m_findBar = nullptr;
     QTabWidget *m_tabs = nullptr;
 
     QAction *m_newAct = nullptr;

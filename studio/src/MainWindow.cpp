@@ -24,17 +24,20 @@
 #include <QTextDocument>
 #include <QToolBar>
 #include <QToolButton>
+#include <QVBoxLayout>
 
 #include "CodeEditor.h"
+#include "FindBar.h"
 #include "NexHighlighter.h"
 #include "Sidebar.h"
 
-namespace {
-
-QString sourceFilter()
+namespace
 {
-    return QObject::tr("NexCore source (*.nex);;All files (*)");
-}
+
+    QString sourceFilter()
+    {
+        return QObject::tr("NexCore source (*.nex);;All files (*)");
+    }
 
 } // namespace
 
@@ -55,7 +58,19 @@ MainWindow::MainWindow(QWidget *parent)
     m_splitter->setChildrenCollapsible(false);
     m_splitter->setHandleWidth(1);
     m_splitter->addWidget(m_sidebar);
-    m_splitter->addWidget(m_tabs);
+
+    m_findBar = new FindBar(this);
+    m_findBar->hide();
+
+    // Editor tabs with the find bar underneath.
+    auto *editorArea = new QWidget(this);
+    auto *editorLayout = new QVBoxLayout(editorArea);
+    editorLayout->setContentsMargins(0, 0, 0, 0);
+    editorLayout->setSpacing(0);
+    editorLayout->addWidget(m_tabs, 1);
+    editorLayout->addWidget(m_findBar);
+    m_splitter->addWidget(editorArea);
+
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 1);
     m_splitter->setSizes({260, 1020});
@@ -68,12 +83,12 @@ MainWindow::MainWindow(QWidget *parent)
     createStatusBar();
 
     connect(m_tabs, &QTabWidget::currentChanged, this, &MainWindow::onCurrentTabChanged);
-    connect(m_tabs->tabBar(), &QTabBar::tabMoved, this, [this] { refreshSidebar(); });
+    connect(m_tabs->tabBar(), &QTabBar::tabMoved, this, [this]
+            { refreshSidebar(); });
 
     connect(m_sidebar, &Sidebar::openFileSelected, m_tabs, &QTabWidget::setCurrentIndex);
-    connect(m_sidebar, &Sidebar::fileActivated, this, [this](const QString &path) {
-        openPath(path);
-    });
+    connect(m_sidebar, &Sidebar::fileActivated, this, [this](const QString &path)
+            { openPath(path); });
     connect(m_sidebar, &Sidebar::openFolderRequested, this, &MainWindow::openFolder);
 
     addEditor();
@@ -131,30 +146,40 @@ void MainWindow::createEditActions()
     QAction *selectAllAct = createAction(editMenu, tr("Select &All"), QKeySequence::SelectAll);
 
     // The actions always work on whichever editor tab is current.
-    connect(m_undoAct, &QAction::triggered, this, [this] {
+    connect(m_undoAct, &QAction::triggered, this, [this]
+            {
         if (CodeEditor *editor = currentEditor())
-            editor->undo();
-    });
-    connect(m_redoAct, &QAction::triggered, this, [this] {
+            editor->undo(); });
+    connect(m_redoAct, &QAction::triggered, this, [this]
+            {
         if (CodeEditor *editor = currentEditor())
-            editor->redo();
-    });
-    connect(m_cutAct, &QAction::triggered, this, [this] {
+            editor->redo(); });
+    connect(m_cutAct, &QAction::triggered, this, [this]
+            {
         if (CodeEditor *editor = currentEditor())
-            editor->cut();
-    });
-    connect(m_copyAct, &QAction::triggered, this, [this] {
+            editor->cut(); });
+    connect(m_copyAct, &QAction::triggered, this, [this]
+            {
         if (CodeEditor *editor = currentEditor())
-            editor->copy();
-    });
-    connect(pasteAct, &QAction::triggered, this, [this] {
+            editor->copy(); });
+    connect(pasteAct, &QAction::triggered, this, [this]
+            {
         if (CodeEditor *editor = currentEditor())
-            editor->paste();
-    });
-    connect(selectAllAct, &QAction::triggered, this, [this] {
+            editor->paste(); });
+    connect(selectAllAct, &QAction::triggered, this, [this]
+            {
         if (CodeEditor *editor = currentEditor())
-            editor->selectAll();
-    });
+            editor->selectAll(); });
+
+    editMenu->addSeparator();
+    QAction *findAct = createAction(editMenu, tr("&Find..."), QKeySequence::Find);
+    QAction *replaceAct = createAction(editMenu, tr("R&eplace..."), QKeySequence::Replace);
+    QAction *findNextAct = createAction(editMenu, tr("Find &Next"), QKeySequence::FindNext);
+    QAction *findPreviousAct = createAction(editMenu, tr("Find Pre&vious"), QKeySequence::FindPrevious);
+    connect(findAct, &QAction::triggered, m_findBar, &FindBar::openFind);
+    connect(replaceAct, &QAction::triggered, m_findBar, &FindBar::openReplace);
+    connect(findNextAct, &QAction::triggered, m_findBar, &FindBar::findNext);
+    connect(findPreviousAct, &QAction::triggered, m_findBar, &FindBar::findPrevious);
 
     updateEditActions();
 }
@@ -178,14 +203,14 @@ void MainWindow::createViewActions()
     previousTabAct->setShortcuts({QKeySequence(QKeySequence::PreviousChild),
                                   QKeySequence(Qt::CTRL | Qt::Key_PageUp)});
 
-    connect(nextTabAct, &QAction::triggered, this, [this] {
+    connect(nextTabAct, &QAction::triggered, this, [this]
+            {
         if (m_tabs->count() > 1)
-            m_tabs->setCurrentIndex((m_tabs->currentIndex() + 1) % m_tabs->count());
-    });
-    connect(previousTabAct, &QAction::triggered, this, [this] {
+            m_tabs->setCurrentIndex((m_tabs->currentIndex() + 1) % m_tabs->count()); });
+    connect(previousTabAct, &QAction::triggered, this, [this]
+            {
         if (m_tabs->count() > 1)
-            m_tabs->setCurrentIndex((m_tabs->currentIndex() + m_tabs->count() - 1) % m_tabs->count());
-    });
+            m_tabs->setCurrentIndex((m_tabs->currentIndex() + m_tabs->count() - 1) % m_tabs->count()); });
 }
 
 void MainWindow::createToolBar()
@@ -233,10 +258,11 @@ CodeEditor *MainWindow::editorForPath(const QString &path) const
     if (wanted.isEmpty())
         return nullptr;
 
-    for (int i = 0; i < m_tabs->count(); ++i) {
+    for (int i = 0; i < m_tabs->count(); ++i)
+    {
         CodeEditor *editor = editorAt(i);
-        if (editor && !editor->filePath().isEmpty()
-            && QFileInfo(editor->filePath()).canonicalFilePath() == wanted) {
+        if (editor && !editor->filePath().isEmpty() && QFileInfo(editor->filePath()).canonicalFilePath() == wanted)
+        {
             return editor;
         }
     }
@@ -251,8 +277,8 @@ CodeEditor *MainWindow::pristineEditor() const
         return nullptr;
 
     CodeEditor *editor = editorAt(0);
-    if (editor && editor->filePath().isEmpty() && !editor->document()->isModified()
-        && editor->document()->isEmpty()) {
+    if (editor && editor->filePath().isEmpty() && !editor->document()->isModified() && editor->document()->isEmpty())
+    {
         return editor;
     }
     return nullptr;
@@ -270,16 +296,19 @@ CodeEditor *MainWindow::addEditor()
     ++m_untitledCounter;
 
     connect(editor->document(), &QTextDocument::modificationChanged, this,
-            [this, editor] { updateTab(editor); });
+            [this, editor]
+            { updateTab(editor); });
 
-    auto cursorChanged = [this, editor] {
+    auto cursorChanged = [this, editor]
+    {
         if (editor == currentEditor())
             updateCursorStatus();
     };
     connect(editor, &QPlainTextEdit::cursorPositionChanged, this, cursorChanged);
     connect(editor, &QPlainTextEdit::selectionChanged, this, cursorChanged);
 
-    auto actionsChanged = [this, editor] {
+    auto actionsChanged = [this, editor]
+    {
         if (editor == currentEditor())
             updateEditActions();
     };
@@ -296,9 +325,8 @@ CodeEditor *MainWindow::addEditor()
     closeButton->setText(QString::fromUtf8("\u00d7"));
     closeButton->setToolTip(tr("Close"));
     closeButton->setFocusPolicy(Qt::NoFocus);
-    connect(closeButton, &QToolButton::clicked, this, [this, editor] {
-        closeTab(m_tabs->indexOf(editor));
-    });
+    connect(closeButton, &QToolButton::clicked, this, [this, editor]
+            { closeTab(m_tabs->indexOf(editor)); });
     m_tabs->tabBar()->setTabButton(index, QTabBar::RightSide, closeButton);
 
     m_tabs->setCurrentIndex(index);
@@ -331,7 +359,8 @@ void MainWindow::updateWindowState()
 {
     CodeEditor *editor = currentEditor();
 
-    if (!editor) {
+    if (!editor)
+    {
         setWindowTitle(tr("NexCore Studio"));
         setWindowModified(false);
         m_fileLabel->clear();
@@ -361,7 +390,8 @@ void MainWindow::updateEditActions()
 void MainWindow::updateCursorStatus()
 {
     CodeEditor *editor = currentEditor();
-    if (!editor) {
+    if (!editor)
+    {
         m_cursorLabel->clear();
         return;
     }
@@ -381,8 +411,10 @@ void MainWindow::updateCursorStatus()
 void MainWindow::refreshSidebar()
 {
     QList<Sidebar::OpenFile> files;
-    for (int i = 0; i < m_tabs->count(); ++i) {
-        if (CodeEditor *editor = editorAt(i)) {
+    for (int i = 0; i < m_tabs->count(); ++i)
+    {
+        if (CodeEditor *editor = editorAt(i))
+        {
             files.append({editor->displayName(), editor->filePath(),
                           editor->document()->isModified()});
         }
@@ -394,6 +426,7 @@ void MainWindow::onCurrentTabChanged(int index)
 {
     CodeEditor *editor = editorAt(index);
 
+    m_findBar->setEditor(editor);
     updateWindowState();
     updateCursorStatus();
     updateEditActions();
@@ -442,13 +475,15 @@ bool MainWindow::openPath(const QString &path)
 {
     const QString absolute = QFileInfo(path).absoluteFilePath();
 
-    if (CodeEditor *open = editorForPath(absolute)) {
+    if (CodeEditor *open = editorForPath(absolute))
+    {
         m_tabs->setCurrentWidget(open);
         return true;
     }
 
     QFile file(absolute);
-    if (!file.open(QIODevice::ReadOnly)) {
+    if (!file.open(QIODevice::ReadOnly))
+    {
         QMessageBox::warning(
             this, tr("Cannot open file"),
             tr("Could not read \"%1\":\n%2")
@@ -520,7 +555,8 @@ bool MainWindow::saveEditorAs(CodeEditor *editor)
         path += QStringLiteral(".nex");
 
     CodeEditor *other = editorForPath(path);
-    if (other && other != editor) {
+    if (other && other != editor)
+    {
         QMessageBox::warning(
             this, tr("File is already open"),
             tr("\"%1\" is open in another tab.\nClose that tab first, or choose a different name.")
@@ -528,7 +564,8 @@ bool MainWindow::saveEditorAs(CodeEditor *editor)
         return false;
     }
 
-    if (path != editor->filePath() && QFileInfo::exists(path)) {
+    if (path != editor->filePath() && QFileInfo::exists(path))
+    {
         const auto answer = QMessageBox::question(
             this, tr("Replace file?"),
             tr("\"%1\" already exists.\nDo you want to replace it?")
@@ -556,7 +593,8 @@ bool MainWindow::writeFile(CodeEditor *editor, const QString &path)
     // QSaveFile writes to a temporary file and renames it on commit, so a
     // failed save never leaves a half-written file behind.
     QSaveFile file(path);
-    if (!file.open(QIODevice::WriteOnly)) {
+    if (!file.open(QIODevice::WriteOnly))
+    {
         QMessageBox::warning(
             this, tr("Cannot save file"),
             tr("Could not write \"%1\":\n%2")
@@ -565,7 +603,8 @@ bool MainWindow::writeFile(CodeEditor *editor, const QString &path)
     }
 
     const QByteArray data = editor->toPlainText().toUtf8();
-    if (file.write(data) != data.size() || !file.commit()) {
+    if (file.write(data) != data.size() || !file.commit())
+    {
         QMessageBox::warning(
             this, tr("Cannot save file"),
             tr("Could not write \"%1\":\n%2")
@@ -591,7 +630,8 @@ bool MainWindow::maybeSave(CodeEditor *editor)
     box.setInformativeText(tr("Your changes will be lost if you don't save them."));
     box.setDefaultButton(QMessageBox::Save);
 
-    switch (box.exec()) {
+    switch (box.exec())
+    {
     case QMessageBox::Save:
         return saveEditor(editor);
     case QMessageBox::Discard:
@@ -624,9 +664,11 @@ void MainWindow::closeTab(int index)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    for (int i = 0; i < m_tabs->count(); ++i) {
+    for (int i = 0; i < m_tabs->count(); ++i)
+    {
         CodeEditor *editor = editorAt(i);
-        if (editor && !maybeSave(editor)) {
+        if (editor && !maybeSave(editor))
+        {
             event->ignore();
             return;
         }
