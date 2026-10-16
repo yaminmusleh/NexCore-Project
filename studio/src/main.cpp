@@ -135,7 +135,20 @@ namespace
             " border: 1px solid #4a4f5c; border-radius: 3px;"
             " background: #17181c; }"
             "QCheckBox::indicator:checked { background: #35c5b2;"
-            " border-color: #35c5b2; }"));
+            " border-color: #35c5b2; }"
+            "QSplitter::handle:vertical { background: #1e2024;"
+            " border-top: 1px solid #2a2d34; border-bottom: 1px solid #2a2d34; }"
+            "QTabWidget#panelTabs QTabBar::tab { padding: 5px 14px; }"
+            "QTabWidget#panelTabs QTabBar::tab:selected { border-top: none;"
+            " border-bottom: 2px solid #35c5b2; padding-top: 5px;"
+            " padding-bottom: 3px; }"
+            "QToolButton#panelButton { border: none; border-radius: 3px;"
+            " padding: 2px 8px; color: #8b90a0; }"
+            "QToolButton#panelButton:hover { background: #343842;"
+            " color: #ffffff; }"
+            "QLabel#panelHint { color: #6b7080; padding: 12px; }"
+            "QListWidget#problemList { background: #17181c; }"
+            "QListWidget#problemList::item { padding: 3px 12px; }"));
     }
 
 } // namespace

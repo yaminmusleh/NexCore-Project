@@ -19,6 +19,8 @@ qt_add_executable(nexcore-studio
     src/FindBar.cpp
     src/NexHighlighter.h
     src/NexHighlighter.cpp
+    src/OutputPanel.h
+    src/OutputPanel.cpp
     src/Sidebar.h
     src/Sidebar.cpp
 )

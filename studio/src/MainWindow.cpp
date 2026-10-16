@@ -69,7 +69,19 @@ MainWindow::MainWindow(QWidget *parent)
     editorLayout->setSpacing(0);
     editorLayout->addWidget(m_tabs, 1);
     editorLayout->addWidget(m_findBar);
-    m_splitter->addWidget(editorArea);
+    m_output = new OutputPanel(this);
+    m_output->setMinimumHeight(90);
+
+    // Editor area on top, output panel below it.
+    m_editorSplitter = new QSplitter(Qt::Vertical, this);
+    m_editorSplitter->setChildrenCollapsible(false);
+    m_editorSplitter->setHandleWidth(5);
+    m_editorSplitter->addWidget(editorArea);
+    m_editorSplitter->addWidget(m_output);
+    m_editorSplitter->setStretchFactor(0, 1);
+    m_editorSplitter->setStretchFactor(1, 0);
+    m_editorSplitter->setSizes({600, 200});
+    m_splitter->addWidget(m_editorSplitter);
 
     m_splitter->setStretchFactor(0, 0);
     m_splitter->setStretchFactor(1, 1);
@@ -90,6 +102,11 @@ MainWindow::MainWindow(QWidget *parent)
     connect(m_sidebar, &Sidebar::fileActivated, this, [this](const QString &path)
             { openPath(path); });
     connect(m_sidebar, &Sidebar::openFolderRequested, this, &MainWindow::openFolder);
+
+    connect(m_output, &OutputPanel::problemActivated, this, &MainWindow::revealLocation);
+    connect(m_output, &OutputPanel::hideRequested, this, [this]
+            { m_toggleOutputAct->setChecked(false); });
+    connect(m_output, &OutputPanel::maximizeToggled, this, &MainWindow::setOutputMaximized);
 
     addEditor();
 
@@ -193,6 +210,12 @@ void MainWindow::createViewActions()
     m_toggleSidebarAct->setCheckable(true);
     m_toggleSidebarAct->setChecked(true);
     connect(m_toggleSidebarAct, &QAction::toggled, m_sidebar, &QWidget::setVisible);
+
+    m_toggleOutputAct = createAction(viewMenu, tr("Show &Output Panel"),
+                                     QKeySequence(Qt::CTRL | Qt::Key_J));
+    m_toggleOutputAct->setCheckable(true);
+    m_toggleOutputAct->setChecked(true);
+    connect(m_toggleOutputAct, &QAction::toggled, this, &MainWindow::setOutputVisible);
 
     viewMenu->addSeparator();
 
@@ -641,12 +664,58 @@ bool MainWindow::maybeSave(CodeEditor *editor)
     }
 }
 
-void MainWindow::closeCurrentTab()
+// Opens `file` (or uses the current tab when `file` is empty) and puts the
+// cursor at line/column, both 1-based. Used for clicks on a problem.
+void MainWindow::revealLocation(const QString &file, int line, int column)
 {
-    closeTab(m_tabs->currentIndex());
+    if (!file.isEmpty() && !openPath(file))
+        return;
+
+    CodeEditor *editor = currentEditor();
+    if (!editor)
+        return;
+
+    QTextBlock block = editor->document()->findBlockByNumber(qMax(1, line) - 1);
+    if (!block.isValid())
+        block = editor->document()->lastBlock();
+
+    QTextCursor cursor(block);
+    cursor.setPosition(block.position() + qBound(0, column - 1, block.length() - 1));
+    editor->setTextCursor(cursor);
+    editor->centerCursor();
+    editor->setFocus();
 }
 
-void MainWindow::closeTab(int index)
+void MainWindow::setOutputVisible(bool visible)
+{
+    // A hidden panel must not stay "maximized".
+    if (!visible && m_output->panelMaximized())
+    {
+        m_output->setPanelMaximized(false);
+        setOutputMaximized(false);
+    }
+    m_output->setVisible(visible);
+}
+
+void MainWindow::setOutputMaximized(bool maximized)
+{
+    if (maximized)
+    {
+        m_savedSplitterSizes = m_editorSplitter->sizes();
+        int total = 0;
+        for (int size : std::as_const(m_savedSplitterSizes))
+            total += size;
+        m_editorSplitter->setSizes({0, total}); // the editor keeps its minimum height
+    }
+    else if (!m_savedSplitterSizes.isEmpty())
+    {
+        m_editorSplitter->setSizes(m_savedSplitterSizes);
+    }
+}
+
+void MainWindow::closeCurrentTab()
+
+    void MainWindow::closeTab(int index)
 {
     CodeEditor *editor = editorAt(index);
     if (!editor || !maybeSave(editor))

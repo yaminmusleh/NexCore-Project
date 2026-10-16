@@ -1,12 +1,14 @@
 #pragma once
 
 #include <QKeySequence>
+#include <QList>
 #include <QMainWindow>
 #include <QString>
 
 class CodeEditor;
 class CodeEditor;
 class FindBar;
+class OutputPanel;
 class QAction;
 class QCloseEvent;
 class QLabel;
@@ -39,6 +41,9 @@ private slots:
     void onCurrentTabChanged(int index);
     void updateCursorStatus();
     void refreshSidebar();
+    void revealLocation(const QString &file, int line, int column);
+    void setOutputVisible(bool visible);
+    void setOutputMaximized(bool maximized);
 
 private:
     void createFileActions();
@@ -68,6 +73,9 @@ private:
     QSplitter *m_splitter = nullptr;
     Sidebar *m_sidebar = nullptr;
     FindBar *m_findBar = nullptr;
+    OutputPanel *m_output = nullptr;
+    QSplitter *m_editorSplitter = nullptr;
+    QList<int> m_savedSplitterSizes;
     QTabWidget *m_tabs = nullptr;
 
     QAction *m_newAct = nullptr;
@@ -78,6 +86,7 @@ private:
     QAction *m_cutAct = nullptr;
     QAction *m_copyAct = nullptr;
     QAction *m_toggleSidebarAct = nullptr;
+    QAction *m_toggleOutputAct = nullptr;
 
     QLabel *m_fileLabel = nullptr;
     QLabel *m_infoLabel = nullptr;
