@@ -186,7 +186,6 @@ private:
         buffer += "    lea rsi, [rel .L_print_buffer]\n";
         buffer += "    mov rdx, 1\n";
         buffer += "    syscall\n";
-
     }
     // Generates temporary values.
     //
@@ -210,7 +209,8 @@ private:
     {
         Int,
         Float,
-        Double
+        Double,
+        String
     };
 
     struct Var
@@ -451,6 +451,10 @@ private:
         {
             return ValueType::Double;
         }
+        else if constexpr (std::is_same_v<T, NodeExprStringLit>)
+        {
+            return ValueType::String;
+        }
         else if constexpr (std::is_same_v<T, NodeExprIdentifier>)
         {
             return lookup(node.value).type;
@@ -535,6 +539,12 @@ private:
                                buffer += std::to_string(offset);
                                buffer += "], xmm0\n";
                            }
+                           else if (type == ValueType::String)
+                           {
+                               buffer += "    mov [rbp - ";
+                               buffer += std::to_string(offset);
+                               buffer += "], rbx\n";
+                           }
 
                            m_variableCount++;
 
@@ -591,38 +601,52 @@ private:
                             buffer += std::to_string(var.offset);
                             buffer += "], xmm0\n";
                            }
+                           else if (var.type == ValueType::String)
+                           {
+                               buffer += "    mov [rbp - ";
+                               buffer += std::to_string(var.offset);
+                               buffer += "], rbx\n";
+                           }
                        }
-                      else if constexpr (std::is_same_v<T, NodeStmntPrint>)                      
-                      {
-                          generate_expr(stmt.expr, buffer);
-                      
-                          // --------------------------------------------------                      
-    // String
-    // --------------------------------------------------
-                          if (std::holds_alternative<NodeExprStringLit>(
-                                  stmt.expr->expr))                      
-                             {
-                                 auto &string =
-                                     std::get<NodeExprStringLit>(stmt.expr->expr);
-                         
-                                 buffer += "    mov rax, 1\n"; // sys_write
-                                 buffer += "    mov rdi, 1\n"; // stdout
-                                 buffer += "    mov rsi, rbx\n"; // string address
-                                 buffer += "    mov rdx, ";
-                                 buffer += std::to_string(string.value.size() + 1);
-                                 buffer += "\n";
-                                 buffer += "    syscall\n";
-                             }
-                      
-                           // --------------------------------------------------
-                          // Integer / expression
-                          // --------------------------------------------------
-                          else
-                          {
-                             generate_print_integer(buffer);
-                          }
-                    }
-                       else if constexpr (std::is_same_v<T, NodeScope *>)
+                       else if constexpr (std::is_same_v<T, NodeStmntPrint>)
+                       {
+                           ValueType type = get_expr_type(stmt.expr);
+                           generate_expr(stmt.expr, buffer);
+                       
+                           if (type == ValueType::String)
+                           {
+                               std::string loop =
+                                   ".L_print_string_loop_" +
+                                   std::to_string(m_labelCount++);
+                       
+                               std::string done =
+                                   ".L_print_string_done_" +
+                                   std::to_string(m_labelCount++);
+                       
+                               // rbx contains the string address.
+                               buffer += "    mov rsi, rbx\n";
+                               buffer += "    xor rdx, rdx\n";
+                       
+                               // Count characters until the null terminator.
+                               buffer += loop + ":\n";
+                               buffer += "    cmp byte [rsi + rdx], 0\n";
+                               buffer += "    je " + done + "\n";
+                               buffer += "    inc rdx\n";
+                               buffer += "    jmp " + loop + "\n";
+                       
+                               // Print the string, including its newline.
+                               buffer += done + ":\n";
+                               buffer += "    mov rax, 1\n";
+                               buffer += "    mov rdi, 1\n";
+                               buffer += "    syscall\n";
+                           }
+                           else
+                           {
+                               generate_print_integer(buffer);
+                           }
+                       }
+
+                      else if constexpr (std::is_same_v<T, NodeScope *>)
                        {
                            generate_scope(stmt, buffer, has_exit);
                        } },
@@ -977,6 +1001,13 @@ private:
                            if (var.type == ValueType::Double)
                            {
                                buffer += "    movsd xmm0, [rbp - ";
+                               buffer += std::to_string(var.offset);
+                               buffer += "]\n";
+                           }
+                           // string: load the stored string address
+                           if (var.type == ValueType::String)
+                           {
+                               buffer += "    mov rbx, [rbp - ";
                                buffer += std::to_string(var.offset);
                                buffer += "]\n";
                            }
