@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=NexCore Studio
+GenericName=NexCore IDE
+Comment=Editor and build environment for the NexCore language
+Exec=@NEXCORE_STUDIO_EXEC@ %F
+Icon=nexcore-studio
+Terminal=false
+Categories=Development;IDE;
+Keywords=NexCore;nex;compiler;
+StartupNotify=true
