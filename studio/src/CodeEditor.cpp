@@ -5,6 +5,7 @@
 #include <QFont>
 #include <QFontDatabase>
 #include <QFontMetrics>
+#include <QHelpEvent>
 #include <QKeyEvent>
 #include <QPaintEvent>
 #include <QPainter>
@@ -12,6 +13,7 @@
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
+#include <QToolTip>
 
 namespace {
 
@@ -20,8 +22,42 @@ const QColor kGutterBorder(0x2a, 0x2d, 0x34);
 const QColor kGutterText(0x5c, 0x61, 0x70);
 const QColor kGutterCurrentText(0xd7, 0xda, 0xe0);
 const QColor kCurrentLine(0x21, 0x24, 0x2a);
+const QColor kErrorColor(0xff, 0x6b, 0x6b);
 
 constexpr int kGutterPadding = 12;
+
+bool isWordChar(QChar c)
+{
+    const char16_t u = c.unicode();
+    return (u >= u'a' && u <= u'z') || (u >= u'A' && u <= u'Z')
+           || (u >= u'0' && u <= u'9') || u == u'_';
+}
+
+// How many characters to underline for an error that starts at `start`: the
+// whole word, string literal or two-character operator there, else one char.
+int tokenLength(const QString &text, int start)
+{
+    const QChar first = text.at(start);
+    int end = start + 1;
+
+    if (isWordChar(first)) {
+        while (end < text.size() && isWordChar(text.at(end)))
+            ++end;
+    } else if (first == QLatin1Char('"')) {
+        while (end < text.size() && text.at(end) != QLatin1Char('"'))
+            ++end;
+        if (end < text.size())
+            ++end;
+    } else if (end < text.size()) {
+        const QChar next = text.at(end);
+        const bool pair = (next == QLatin1Char('=') && QStringLiteral("=!<>").contains(first))
+                          || (first == QLatin1Char('&') && next == QLatin1Char('&'))
+                          || (first == QLatin1Char('|') && next == QLatin1Char('|'));
+        if (pair)
+            ++end;
+    }
+    return end - start;
+}
 
 } // namespace
 
@@ -42,6 +78,25 @@ protected:
     void paintEvent(QPaintEvent *event) override
     {
         m_editor->lineNumberAreaPaintEvent(event);
+    }
+
+    // Hovering the red dot shows the error message. The gutter and the text
+    // area share the same vertical coordinates.
+    bool event(QEvent *event) override
+    {
+        if (event->type() == QEvent::ToolTip) {
+            const auto *help = static_cast<QHelpEvent *>(event);
+            const int line = m_editor->cursorForPosition(QPoint(0, help->pos().y())).blockNumber();
+            const QString message = m_editor->errorMessageForLine(line);
+            if (!message.isEmpty()) {
+                QToolTip::showText(help->globalPos(), message, this);
+            } else {
+                QToolTip::hideText();
+                event->ignore();
+            }
+            return true;
+        }
+        return QWidget::event(event);
     }
 
 private:
@@ -68,8 +123,20 @@ CodeEditor::CodeEditor(QWidget *parent)
     connect(this, &QPlainTextEdit::cursorPositionChanged,
             this, &CodeEditor::highlightCurrentLine);
 
+    // Error marks describe the text as it was when it was compiled, so any
+    // edit invalidates them.
+    connect(document(), &QTextDocument::contentsChange, this, [this](int, int removed, int added) {
+        if (!m_marks.isEmpty() && (removed > 0 || added > 0))
+            clearErrorMarks();
+    });
+
     updateLineNumberAreaWidth();
     highlightCurrentLine();
+}
+
+QString CodeEditor::displayName() const
+{
+    return m_filePath.isEmpty() ? m_untitledName : QFileInfo(m_filePath).fileName();
 }
 
 int CodeEditor::lineNumberAreaWidth() const
@@ -109,6 +176,7 @@ void CodeEditor::resizeEvent(QResizeEvent *event)
         QRect(area.left(), area.top(), lineNumberAreaWidth(), area.height()));
 }
 
+// Current-line background plus the error underlines.
 void CodeEditor::highlightCurrentLine()
 {
     QList<QTextEdit::ExtraSelection> selections;
@@ -122,13 +190,114 @@ void CodeEditor::highlightCurrentLine()
         selections.append(selection);
     }
 
+    for (const Mark &mark : std::as_const(m_marks)) {
+        if (mark.length <= 0)
+            continue;
+
+        QTextEdit::ExtraSelection selection;
+        selection.format.setUnderlineStyle(QTextCharFormat::WaveUnderline);
+        selection.format.setUnderlineColor(kErrorColor);
+        selection.format.setBackground(QColor(0xff, 0x6b, 0x6b, 40));
+        selection.cursor = QTextCursor(document());
+        selection.cursor.setPosition(mark.position);
+        selection.cursor.setPosition(mark.position + mark.length, QTextCursor::KeepAnchor);
+        selections.append(selection);
+    }
+
     setExtraSelections(selections);
     m_lineNumberArea->update();
+}
+
+void CodeEditor::setErrorMarks(const QList<ErrorMark> &marks)
+{
+    m_marks.clear();
+
+    for (const ErrorMark &mark : marks) {
+        if (mark.line < 1)
+            continue;
+        const QTextBlock block = document()->findBlockByNumber(mark.line - 1);
+        if (!block.isValid())
+            continue;
+
+        const QString text = block.text();
+        int offset = qMax(0, mark.column - 1);
+        int length = 0;
+        if (offset >= text.size()) {
+            // Reported at or after the end of the line: mark the last character.
+            offset = qMax(0, text.size() - 1);
+            length = text.isEmpty() ? 0 : 1;
+        } else {
+            length = tokenLength(text, offset);
+        }
+
+        Mark entry;
+        entry.position = block.position() + offset;
+        entry.length = length;
+        entry.blockNumber = mark.line - 1;
+        entry.message = mark.message;
+        m_marks.append(entry);
+    }
+
+    highlightCurrentLine();
+}
+
+void CodeEditor::clearErrorMarks()
+{
+    if (m_marks.isEmpty())
+        return;
+    m_marks.clear();
+    highlightCurrentLine();
+}
+
+QString CodeEditor::errorMessageAt(const QPoint &viewportPos) const
+{
+    for (const Mark &mark : m_marks) {
+        if (mark.length <= 0)
+            continue;
+
+        QTextCursor start(document());
+        start.setPosition(mark.position);
+        QTextCursor end(document());
+        end.setPosition(mark.position + mark.length);
+
+        const QRect first = cursorRect(start);
+        const QRect last = cursorRect(end);
+        const QRect hit(first.left(), first.top(), qMax(1, last.left() - first.left()), first.height());
+        if (hit.contains(viewportPos))
+            return mark.message;
+    }
+    return QString();
+}
+
+QString CodeEditor::errorMessageForLine(int blockNumber) const
+{
+    for (const Mark &mark : m_marks) {
+        if (mark.blockNumber == blockNumber)
+            return mark.message;
+    }
+    return QString();
+}
+
+bool CodeEditor::viewportEvent(QEvent *event)
+{
+    if (event->type() == QEvent::ToolTip && !m_marks.isEmpty()) {
+        const auto *help = static_cast<QHelpEvent *>(event);
+        const QString message = errorMessageAt(help->pos());
+        if (!message.isEmpty()) {
+            QToolTip::showText(help->globalPos(), message, viewport());
+        } else {
+            QToolTip::hideText();
+            event->ignore();
+        }
+        return true;
+    }
+    return QPlainTextEdit::viewportEvent(event);
 }
 
 void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 {
     QPainter painter(m_lineNumberArea);
+    painter.setRenderHint(QPainter::Antialiasing);
     painter.fillRect(event->rect(), kGutterBackground);
     painter.setPen(kGutterBorder);
     painter.drawLine(m_lineNumberArea->width() - 1, event->rect().top(),
@@ -149,6 +318,12 @@ void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
             painter.drawText(0, qRound(top), textWidth, qRound(bottom - top),
                              Qt::AlignRight | Qt::AlignVCenter,
                              QString::number(blockNumber + 1));
+
+            if (!errorMessageForLine(blockNumber).isEmpty()) {
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(kErrorColor);
+                painter.drawEllipse(QPointF(6.5, top + (bottom - top) / 2), 3.0, 3.0);
+            }
         }
         block = block.next();
         top = bottom;
@@ -312,9 +487,4 @@ bool CodeEditor::dedentForClosingBrace()
     cursor.endEditBlock();
     setTextCursor(cursor);
     return true;
-}
-
-QString CodeEditor::displayName() const
-{
-    return m_filePath.isEmpty() ? m_untitledName : QFileInfo(m_filePath).fileName();
 }

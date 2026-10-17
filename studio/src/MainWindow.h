@@ -94,6 +94,7 @@ private:
     QLabel *m_buildStatusLabel = nullptr;
     QString m_buildSource; // the file the current/last build was started for
     bool m_programAtLineStart = true;
+    int m_buildRevision = 0; // document revision the build was started from
     QSplitter *m_editorSplitter = nullptr;
     QList<int> m_savedSplitterSizes;
     QTabWidget *m_tabs = nullptr;

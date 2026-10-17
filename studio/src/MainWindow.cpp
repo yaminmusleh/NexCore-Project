@@ -807,6 +807,12 @@ void MainWindow::startBuild(bool run)
         return;
 
     m_buildSource = editor->filePath();
+    m_buildRevision = editor->document()->revision();
+    for (int i = 0; i < m_tabs->count(); ++i)
+    {
+        if (CodeEditor *tab = editorAt(i))
+            tab->clearErrorMarks();
+    }
     m_output->clearAll();
     m_output->showTab(OutputPanel::Tab::Build);
     m_toggleOutputAct->setChecked(true); // make sure the panel is visible
@@ -891,6 +897,20 @@ void MainWindow::onBuildFinished(bool success, const QString &summary,
                          diagnostic.column, diagnostic.message, true});
     }
     m_output->setProblems(problems);
+
+    // Mark the errors in the editor, unless the text changed while the
+    // compiler was running (the positions would no longer fit).
+    CodeEditor *editor = editorForPath(m_buildSource);
+    if (editor && editor->document()->revision() == m_buildRevision)
+    {
+        QList<CodeEditor::ErrorMark> marks;
+        for (const BuildController::Diagnostic &diagnostic : diagnostics)
+        {
+            if (diagnostic.line > 0)
+                marks.append({diagnostic.line, diagnostic.column, diagnostic.message});
+        }
+        editor->setErrorMarks(marks);
+    }
 
     setBuildStatus(summary);
 }
