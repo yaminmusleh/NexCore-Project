@@ -27,6 +27,9 @@ qt_add_executable(nexcore-studio
     src/OutputPanel.cpp
     src/Sidebar.h
     src/Sidebar.cpp
+    src/WelcomePage.h
+    src/WelcomePage.cpp
+    src/WordmarkData.h
 )
 
 target_link_libraries(nexcore-studio PRIVATE Qt6::Widgets)
