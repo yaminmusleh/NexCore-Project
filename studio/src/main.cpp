@@ -148,7 +148,18 @@ namespace
             " color: #ffffff; }"
             "QLabel#panelHint { color: #6b7080; padding: 12px; }"
             "QListWidget#problemList { background: #17181c; }"
-            "QListWidget#problemList::item { padding: 3px 12px; }"));
+            "QListWidget#problemList::item { padding: 3px 12px; }"
+            "QWidget#welcomePage, QWidget#welcomeContent { background: #17181c; }"
+            "QScrollArea#welcomeScroll { background: transparent; border: none; }"
+            "QLabel#welcomeTagline { color: #8b90a0; font-size: 11pt; }"
+            "QLabel#welcomeHint { color: #6b7080; }"
+            "QLabel#welcomeLink { color: #35c5b2; }"
+            "QPushButton#welcomeButton, QPushButton#welcomeRecent {"
+            " background: transparent; border: none; border-radius: 3px;"
+            " text-align: left; padding: 6px 12px; color: #d7dae0; }"
+            "QPushButton#welcomeRecent { color: #8b90a0; padding: 4px 12px; }"
+            "QPushButton#welcomeButton:hover, QPushButton#welcomeRecent:hover {"
+            " background: #23262c; color: #35c5b2; }"));
     }
 
 } // namespace

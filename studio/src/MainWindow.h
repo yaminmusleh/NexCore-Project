@@ -4,10 +4,10 @@
 #include <QList>
 #include <QMainWindow>
 #include <QString>
+#include <QStringList>
 
 #include "BuildController.h"
 
-class CodeEditor;
 class CodeEditor;
 class FindBar;
 class OutputPanel;
@@ -16,8 +16,10 @@ class QCloseEvent;
 class QLabel;
 class QMenu;
 class QSplitter;
+class QStackedWidget;
 class QTabWidget;
 class Sidebar;
+class WelcomePage;
 
 class MainWindow : public QMainWindow
 {
@@ -73,6 +75,12 @@ private:
     CodeEditor *pristineEditor() const;
     CodeEditor *addEditor();
 
+    void updateCentralPage();
+    void loadRecentFiles();
+    void rememberRecent(const QString &path);
+    void forgetRecent(const QString &path);
+    void storeRecentFiles();
+
     void updateTab(CodeEditor *editor);
     void updateWindowState();
     void updateEditActions();
@@ -98,6 +106,10 @@ private:
     QSplitter *m_editorSplitter = nullptr;
     QList<int> m_savedSplitterSizes;
     QTabWidget *m_tabs = nullptr;
+    QStackedWidget *m_stack = nullptr; // welcome page or editor tabs
+    WelcomePage *m_welcome = nullptr;
+    QStringList m_recentFiles;
+    QAction *m_openFolderAct = nullptr;
 
     QAction *m_newAct = nullptr;
     QAction *m_openAct = nullptr;

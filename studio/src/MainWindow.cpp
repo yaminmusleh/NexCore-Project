@@ -16,8 +16,10 @@
 #include <QPlainTextEdit>
 #include <QPushButton>
 #include <QSaveFile>
+#include <QSettings>
 #include <QSizePolicy>
 #include <QSplitter>
+#include <QStackedWidget>
 #include <QStatusBar>
 #include <QTabBar>
 #include <QTabWidget>
@@ -32,9 +34,12 @@
 #include "NexHighlighter.h"
 #include "OutputPanel.h"
 #include "Sidebar.h"
+#include "WelcomePage.h"
 
 namespace
 {
+
+    constexpr int kMaxRecentFiles = 10;
 
     QString sourceFilter()
     {
@@ -69,7 +74,11 @@ MainWindow::MainWindow(QWidget *parent)
     auto *editorLayout = new QVBoxLayout(editorArea);
     editorLayout->setContentsMargins(0, 0, 0, 0);
     editorLayout->setSpacing(0);
-    editorLayout->addWidget(m_tabs, 1);
+    m_welcome = new WelcomePage(this);
+    m_stack = new QStackedWidget(this);
+    m_stack->addWidget(m_welcome);
+    m_stack->addWidget(m_tabs);
+    editorLayout->addWidget(m_stack, 1);
     editorLayout->addWidget(m_findBar);
     m_output = new OutputPanel(this);
     m_output->setMinimumHeight(90);
@@ -113,7 +122,25 @@ MainWindow::MainWindow(QWidget *parent)
 
     createBuildController();
 
-    addEditor();
+    // The welcome page: shortcut hints, buttons and the recent files.
+    m_welcome->setShortcutHints(
+        m_newAct->shortcut().toString(QKeySequence::NativeText),
+        m_openAct->shortcut().toString(QKeySequence::NativeText),
+        m_openFolderAct->shortcut().toString(QKeySequence::NativeText));
+    connect(m_welcome, &WelcomePage::newFileRequested, this, &MainWindow::newFile);
+    connect(m_welcome, &WelcomePage::openFileRequested, this, &MainWindow::openFiles);
+    connect(m_welcome, &WelcomePage::openFolderRequested, this, &MainWindow::openFolder);
+    connect(m_welcome, &WelcomePage::recentFileRequested, this, [this](const QString &path)
+            {
+        if (!openPath(path))
+            forgetRecent(path); });
+    loadRecentFiles();
+
+    // No tab exists yet, so the welcome page is what the window starts with.
+    updateCentralPage();
+    updateWindowState();
+    updateCursorStatus();
+    refreshSidebar();
 
     resize(1280, 800);
     setMinimumSize(800, 500);
@@ -135,7 +162,7 @@ void MainWindow::createFileActions()
     m_newAct = createAction(fileMenu, tr("&New"), QKeySequence::New);
     m_openAct = createAction(fileMenu, tr("&Open..."), QKeySequence::Open);
     m_openAct->setIconText(tr("Open"));
-    QAction *openFolderAct = createAction(fileMenu, tr("Open &Folder..."),
+    m_openFolderAct = createAction(fileMenu, tr("Open &Folder..."),
                                           QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_O));
     fileMenu->addSeparator();
     m_saveAct = createAction(fileMenu, tr("&Save"), QKeySequence::Save);
@@ -146,7 +173,7 @@ void MainWindow::createFileActions()
 
     connect(m_newAct, &QAction::triggered, this, &MainWindow::newFile);
     connect(m_openAct, &QAction::triggered, this, &MainWindow::openFiles);
-    connect(openFolderAct, &QAction::triggered, this, &MainWindow::openFolder);
+    connect(m_openFolderAct, &QAction::triggered, this, &MainWindow::openFolder);
     connect(m_saveAct, &QAction::triggered, this, &MainWindow::saveFile);
     connect(saveAsAct, &QAction::triggered, this, &MainWindow::saveFileAs);
     connect(closeTabAct, &QAction::triggered, this, &MainWindow::closeCurrentTab);
@@ -462,6 +489,7 @@ void MainWindow::onCurrentTabChanged(int index)
 {
     CodeEditor *editor = editorAt(index);
 
+    updateCentralPage();
     m_findBar->setEditor(editor);
     updateWindowState();
     updateCursorStatus();
@@ -469,7 +497,11 @@ void MainWindow::onCurrentTabChanged(int index)
     refreshSidebar();
 
     if (!editor)
+    {
+        m_findBar->hide();
+        m_sidebar->revealFile(QString());
         return;
+    }
 
     m_sidebar->revealFile(editor->filePath());
 
@@ -546,6 +578,7 @@ bool MainWindow::openPath(const QString &path)
     if (m_sidebar->rootFolder().isEmpty())
         m_sidebar->setRootFolder(QFileInfo(absolute).absolutePath());
     m_sidebar->revealFile(absolute);
+    rememberRecent(absolute);
     return true;
 }
 
@@ -621,6 +654,7 @@ bool MainWindow::saveEditorAs(CodeEditor *editor)
     if (m_sidebar->rootFolder().isEmpty())
         m_sidebar->setRootFolder(QFileInfo(path).absolutePath());
     m_sidebar->revealFile(path);
+    rememberRecent(path);
     return true;
 }
 
@@ -945,10 +979,8 @@ void MainWindow::closeTab(int index)
     m_tabs->removeTab(index);
     editor->deleteLater();
 
-    // There is always at least one tab to type into.
-    if (m_tabs->count() == 0)
-        addEditor();
-
+    // With no tab left, the welcome page takes over.
+    updateCentralPage();
     refreshSidebar();
 }
 
@@ -973,4 +1005,46 @@ QString MainWindow::startDirectory(const CodeEditor *editor) const
     if (!m_sidebar->rootFolder().isEmpty())
         return m_sidebar->rootFolder();
     return QDir::homePath();
+}
+
+// ---- welcome page and recent files -------------------------------------------
+
+void MainWindow::updateCentralPage()
+{
+    QWidget *page = m_tabs->count() > 0 ? static_cast<QWidget *>(m_tabs)
+                                        : static_cast<QWidget *>(m_welcome);
+    m_stack->setCurrentWidget(page);
+}
+
+void MainWindow::loadRecentFiles()
+{
+    m_recentFiles.clear();
+    const QStringList saved = QSettings().value(QStringLiteral("recentFiles")).toStringList();
+    for (const QString &path : saved)
+    {
+        if (QFileInfo::exists(path))
+            m_recentFiles.append(path);
+    }
+    m_welcome->setRecentFiles(m_recentFiles);
+}
+
+void MainWindow::rememberRecent(const QString &path)
+{
+    m_recentFiles.removeAll(path);
+    m_recentFiles.prepend(path);
+    while (m_recentFiles.size() > kMaxRecentFiles)
+        m_recentFiles.removeLast();
+    storeRecentFiles();
+}
+
+void MainWindow::forgetRecent(const QString &path)
+{
+    if (m_recentFiles.removeAll(path) > 0)
+        storeRecentFiles();
+}
+
+void MainWindow::storeRecentFiles()
+{
+    QSettings().setValue(QStringLiteral("recentFiles"), m_recentFiles);
+    m_welcome->setRecentFiles(m_recentFiles);
 }
