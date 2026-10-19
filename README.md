@@ -127,3 +127,9 @@ exit(0);
 A Qt 6 desktop editor with Build, Run and Stop for the NexCore compiler is in
 [`studio/`](studio/README.md). It is a separate CMake project; building and using
 the compiler itself is unchanged.
+
+
+
+## NexCore Diagram
+
+[![Architecture diagram of yaminmusleh/nexcore-project](https://gitdiagram.com/yaminmusleh/nexcore-project/diagram.png)](https://gitdiagram.com/yaminmusleh/nexcore-project?utm_source=readme&utm_medium=picture)
