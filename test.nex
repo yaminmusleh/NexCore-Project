@@ -1,4 +1,10 @@
-set a = 5;
-set b = 7 + 2 * 3;
-print(a);
-print(b);
+set done = false;
+set i = 0;
+whilst (!done) {
+    print(i);
+    i = i + 1;
+    iff (i == 3) {
+        done = true;
+    }
+}
+print("finished");
