@@ -319,7 +319,6 @@ private:
     void generate_for(NodeStmntFor *stmt,
                       std::string &buffer,
                       bool &has_exit)
-
     {
         std::string startLabel =
             ".L" + std::to_string(m_labelCount++);
@@ -327,67 +326,46 @@ private:
         std::string endLabel =
             ".L" + std::to_string(m_labelCount++);
 
-        // 1. Generate initialization once.
+        // The loop variable (set i = 0) lives in its own scope that
+        // covers the whole loop, and is released after it.
+        size_t oldVariableCount = m_variableCount;
+        m_scopes.emplace_back();
+
+        // 1. Initialization, once.
         bool init_exit = false;
+        generate_statement(stmt->init, buffer, init_exit);
 
-        generate_statement(
-            stmt->init,
-            buffer,
-            init_exit);
-
-        if (init_exit)
-        {
-            has_exit = true;
-            return;
-        }
-
-        // 2. Start of loop.
+        // 2. Start of loop + condition (false -> endLabel).
         buffer += startLabel + ":\n";
+        generate_condition(stmt->condition, buffer, endLabel);
 
-        // 3. Check condition.
-        // If false, jump directly to endLabel.
-        generate_condition(
-            stmt->condition,
-            buffer,
-            endLabel);
-
-        // 4. Generate body.
+        // 3. Body.
         bool body_exit = false;
+        generate_scope(stmt->scope, buffer, body_exit);
 
-        generate_scope(
-            stmt->scope,
-            buffer,
-            body_exit);
-
-        // If the body called exit(), the program is already terminated.
-        if (body_exit)
+        // 4. Increment and jump back, unless the body always exits.
+        if (!body_exit)
         {
-            has_exit = true;
-            return;
+            bool increment_exit = false;
+            generate_statement(stmt->increment, buffer, increment_exit);
+            buffer += "    jmp " + startLabel + "\n";
         }
 
-        // 5. Generate increment.
-        bool increment_exit = false;
-
-        generate_statement(
-            stmt->increment,
-            buffer,
-            increment_exit);
-
-        if (increment_exit)
-        {
-            has_exit = true;
-            return;
-        }
-
-        // 6. Go back to the condition.
-        buffer += "    jmp " + startLabel + "\n";
-
-        // 7. Loop exit.
+        // 5. Loop exit: always emitted, because the condition jumps here.
         buffer += endLabel + ":\n";
 
-        // Reaching the end of a for loop does NOT mean
-        // the whole program exited.
+        // 6. Release the loop variable.
+        size_t created = m_variableCount - oldVariableCount;
+        if (created > 0)
+        {
+            buffer += "    add rsp, ";
+            buffer += std::to_string(created * 8);
+            buffer += "\n";
+        }
+        m_variableCount = oldVariableCount;
+        m_scopes.pop_back();
+
+        // A loop may run zero times, so it never guarantees exit().
         has_exit = false;
     }
     void generate_whilst(NodeStmntWhile *stmt,
@@ -430,7 +408,8 @@ private:
         // Loop ends here.
         buffer += endLabel + ":\n";
 
-        has_exit = body_exit;
+        // A loop may run zero times, so it never guarantees exit().
+        has_exit = false;
     }
 
     ValueType get_expr_type(NodeExpr *expr)
@@ -519,31 +498,26 @@ private:
                            ValueType type = get_expr_type(stmt.expr);
                            generate_expr(stmt.expr, buffer);
 
+                           // Allocate the slot for real. Invariant: at every statement
+                           // boundary, rsp == rbp - 8 * m_variableCount, so the next
+                           // push lands exactly at [rbp - offset] and temporaries
+                           // (push/pop, sub rsp) can never overlap a variable.
                            size_t offset = (m_variableCount + 1) * 8;
 
-                           if (type == ValueType::Int)
+                           if (type == ValueType::Int ||
+                               type == ValueType::String)
                            {
-                               buffer += "    mov [rbp - ";
-                               buffer += std::to_string(offset);
-                               buffer += "], rbx\n";
+                               buffer += "    push rbx\n";
                            }
                            else if (type == ValueType::Float)
                            {
-                               buffer += "    movss [rbp - ";
-                               buffer += std::to_string(offset);
-                               buffer += "], xmm0\n";
+                               buffer += "    sub rsp, 8\n";
+                               buffer += "    movss [rsp], xmm0\n";
                            }
-                           else if(type == ValueType::Double)
+                           else if (type == ValueType::Double)
                            {
-                               buffer += "    movsd [rbp - ";
-                               buffer += std::to_string(offset);
-                               buffer += "], xmm0\n";
-                           }
-                           else if (type == ValueType::String)
-                           {
-                               buffer += "    mov [rbp - ";
-                               buffer += std::to_string(offset);
-                               buffer += "], rbx\n";
+                               buffer += "    sub rsp, 8\n";
+                               buffer += "    movsd [rsp], xmm0\n";
                            }
 
                            m_variableCount++;
@@ -669,21 +643,20 @@ private:
                 break;
         }
 
-        if (!has_exit)
+        size_t variablesCreated =
+            m_variableCount - oldVariableCount;
+
+        // Release this scope's variables from the stack. If the scope ended
+        // in exit(), the code is unreachable so no cleanup is emitted, but the
+        // compile-time bookkeeping must still be restored.
+        if (!has_exit && variablesCreated > 0)
         {
-            size_t variablesCreated =
-                m_variableCount - oldVariableCount;
-
-            if (variablesCreated > 0)
-            {
-                buffer += "    add rsp, ";
-                buffer += std::to_string(variablesCreated * 8);
-                buffer += "\n";
-
-                m_variableCount = oldVariableCount;
-            }
+            buffer += "    add rsp, ";
+            buffer += std::to_string(variablesCreated * 8);
+            buffer += "\n";
         }
 
+        m_variableCount = oldVariableCount;
         m_scopes.pop_back();
     }
 

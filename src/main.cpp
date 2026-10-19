@@ -35,7 +35,16 @@ int main(int argc, char *argv[])
 
     Parser parser(&scanner);
 
-    parser.Parse();
+    try
+    {
+        parser.Parse();
+    }
+    catch (const std::exception &e)
+    {
+        fclose(input);
+        std::cerr << "error: " << e.what() << "\n";
+        return EXIT_FAILURE;
+    }
 
     fclose(input);
     if (parser.errors->count > 0)
@@ -44,9 +53,18 @@ int main(int argc, char *argv[])
         return EXIT_FAILURE;
     }
 
-    Generator generator(std::move(program));
+    std::string assembly;
 
-    std::string assembly = generator.generate();
+    try
+    {
+        Generator generator(std::move(program));
+        assembly = generator.generate();
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "error: " << e.what() << "\n";
+        return EXIT_FAILURE;
+    }
 
     std::ofstream output("out.asm");
 
