@@ -1,2 +1,4 @@
-set x = 3;
-print(x);
+set a = 5;
+set b = 7 + 2 * 3;
+print(a);
+print(b);

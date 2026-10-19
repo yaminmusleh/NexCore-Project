@@ -135,7 +135,7 @@ void Parser::Statement(NodeStmnt *&statement) {
 			AssignStmt(statement);
 			break;
 		}
-		default: SynErr(34); break;
+		default: SynErr(36); break;
 		}
 }
 
@@ -195,7 +195,7 @@ void Parser::IfStmt(NodeStmnt *&statement) {
 				       else_statement->stmnt
 				   );
 				
-			} else SynErr(35);
+			} else SynErr(37);
 		}
 		statement =
 		   make_if(
@@ -331,7 +331,7 @@ void Parser::ForInit(NodeStmnt *&statement) {
 			Expression(expr);
 			statement = make_assign(name, expr);
 			
-		} else SynErr(36);
+		} else SynErr(38);
 }
 
 void Parser::ForIncrement(NodeStmnt *&statement) {
@@ -512,7 +512,7 @@ void Parser::UnaryExpr(NodeExpr *&expr) {
 			
 		} else if (StartOf(3)) {
 			PrimaryExpr(expr);
-		} else SynErr(37);
+		} else SynErr(39);
 }
 
 void Parser::PrimaryExpr(NodeExpr *&expr) {
@@ -562,13 +562,25 @@ void Parser::PrimaryExpr(NodeExpr *&expr) {
 			
 			break;
 		}
+		case 33 /* "true" */: {
+			Get();
+			expr = make_bool_expr(true);
+			
+			break;
+		}
+		case 34 /* "false" */: {
+			Get();
+			expr = make_bool_expr(false);
+			
+			break;
+		}
 		case _open_paren: {
 			Get();
 			Expression(expr);
 			Expect(_close_paren);
 			break;
 		}
-		default: SynErr(38); break;
+		default: SynErr(40); break;
 		}
 }
 
@@ -673,7 +685,7 @@ void Parser::Parse() {
 }
 
 Parser::Parser(Scanner *scanner) {
-	maxT = 33;
+	maxT = 35;
 
 	ParserInitCaller<Parser>::CallInit(this);
 	dummyToken = NULL;
@@ -688,11 +700,11 @@ bool Parser::StartOf(int s) {
 	const bool T = true;
 	const bool x = false;
 
-	static bool set[4][35] = {
-		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x},
-		{x,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,T,x,x, x,x,T,T, T,T,x,T, T,x,x},
-		{x,x,x,x, T,T,T,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x},
-		{x,x,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,x,x, x,x,x,x, x,x,x}
+	static bool set[4][37] = {
+		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
+		{x,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,T,x,x, x,x,T,T, T,T,x,T, T,x,x,x, x},
+		{x,x,x,x, T,T,T,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
+		{x,x,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,x,x, x,x,x,x, x,T,T,x, x}
 	};
 
 
@@ -746,12 +758,14 @@ void Errors::SynErr(int line, int col, int n) {
 			case 30: s = coco_string_create(L"\"otherwise\" expected"); break;
 			case 31: s = coco_string_create(L"\"for\" expected"); break;
 			case 32: s = coco_string_create(L"\"whilst\" expected"); break;
-			case 33: s = coco_string_create(L"??? expected"); break;
-			case 34: s = coco_string_create(L"invalid Statement"); break;
-			case 35: s = coco_string_create(L"invalid IfStmt"); break;
-			case 36: s = coco_string_create(L"invalid ForInit"); break;
-			case 37: s = coco_string_create(L"invalid UnaryExpr"); break;
-			case 38: s = coco_string_create(L"invalid PrimaryExpr"); break;
+			case 33: s = coco_string_create(L"\"true\" expected"); break;
+			case 34: s = coco_string_create(L"\"false\" expected"); break;
+			case 35: s = coco_string_create(L"??? expected"); break;
+			case 36: s = coco_string_create(L"invalid Statement"); break;
+			case 37: s = coco_string_create(L"invalid IfStmt"); break;
+			case 38: s = coco_string_create(L"invalid ForInit"); break;
+			case 39: s = coco_string_create(L"invalid UnaryExpr"); break;
+			case 40: s = coco_string_create(L"invalid PrimaryExpr"); break;
 
 		default:
 		{

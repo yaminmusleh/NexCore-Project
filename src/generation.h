@@ -28,6 +28,7 @@ public:
         m_variableCount = 0;
         m_strings.clear();
         m_stringCount = 0;
+        m_boolStringsAdded = false;
 
         std::string buffer =
             "global _start\n"
@@ -210,7 +211,8 @@ private:
         Int,
         Float,
         Double,
-        String
+        String,
+        Bool
     };
 
     struct Var
@@ -412,6 +414,116 @@ private:
         has_exit = false;
     }
 
+    // ---- type helpers -------------------------------------------------
+
+    static const char *type_name(ValueType t)
+    {
+        switch (t)
+        {
+        case ValueType::Int:
+            return "int";
+        case ValueType::Float:
+            return "float";
+        case ValueType::Double:
+            return "double";
+        case ValueType::String:
+            return "text";
+        case ValueType::Bool:
+            return "bool";
+        }
+        return "unknown";
+    }
+
+    static bool is_relational_op(const std::string &op)
+    {
+        return op == "<" || op == "<=" || op == ">" || op == ">=";
+    }
+
+    static bool is_equality_op(const std::string &op)
+    {
+        return op == "==" || op == "!=";
+    }
+
+    static bool is_logical_op(const std::string &op)
+    {
+        return op == "&&" || op == "||";
+    }
+
+    // Operators whose result is a truth value (bool).
+    static bool is_condition_op(const std::string &op)
+    {
+        return is_relational_op(op) || is_equality_op(op) || is_logical_op(op);
+    }
+
+    // Type rules for binary expressions. Throws a clear error for misuse.
+    ValueType check_binary_type(BinaryExpr *node)
+    {
+        ValueType left = get_expr_type(node->left);
+        ValueType right = get_expr_type(node->right);
+        const std::string &op = node->op;
+
+        // && and || always produce a bool. Operands may be bool or int.
+        if (is_logical_op(op))
+            return ValueType::Bool;
+
+        // == and != : bool only compares with bool.
+        if (is_equality_op(op))
+        {
+            if ((left == ValueType::Bool) != (right == ValueType::Bool))
+            {
+                throw std::runtime_error(
+                    std::string("Cannot compare ") + type_name(left) +
+                    " with " + type_name(right) + " using '" + op + "'");
+            }
+            return ValueType::Bool;
+        }
+
+        // < <= > >= : numbers only.
+        if (is_relational_op(op))
+        {
+            if (left == ValueType::Bool || right == ValueType::Bool)
+            {
+                throw std::runtime_error(
+                    "Operator '" + op + "' cannot be applied to bool");
+            }
+            return ValueType::Bool;
+        }
+
+        // Arithmetic: + - * / %
+        if (left == ValueType::Bool || right == ValueType::Bool)
+        {
+            throw std::runtime_error(
+                "Operator '" + op + "' cannot be applied to bool");
+        }
+
+        if (left == ValueType::Double || right == ValueType::Double)
+            return ValueType::Double;
+
+        if (left == ValueType::Float || right == ValueType::Float)
+            return ValueType::Float;
+
+        return ValueType::Int;
+    }
+
+    ValueType check_unary_type(UnaryExpr *node)
+    {
+        ValueType operand = get_expr_type(node->expr);
+
+        if (node->op == "!")
+            return ValueType::Bool;
+
+        if (node->op == "-")
+        {
+            if (operand == ValueType::Bool)
+                throw std::runtime_error(
+                    "Operator '-' cannot be applied to bool");
+
+            return operand;
+        }
+
+        throw std::runtime_error("Unknown unary operator: " + node->op);
+    }
+
     ValueType get_expr_type(NodeExpr *expr)
     {
         return std::visit([&](auto &&node) -> ValueType
@@ -434,32 +546,21 @@ private:
         {
             return ValueType::String;
         }
+        else if constexpr (std::is_same_v<T, NodeExprBoolLit>)
+        {
+            return ValueType::Bool;
+        }
         else if constexpr (std::is_same_v<T, NodeExprIdentifier>)
         {
             return lookup(node.value).type;
         }
         else if constexpr (std::is_same_v<T, BinaryExpr *>)
         {
-            ValueType left = get_expr_type(node->left);
-            ValueType right = get_expr_type(node->right);
-
-            if (left == ValueType::Double ||
-                right == ValueType::Double)
-            {
-                return ValueType::Double;
-            }
-
-            if (left == ValueType::Float ||
-                right == ValueType::Float)
-            {
-                return ValueType::Float;
-            }
-
-            return ValueType::Int;
+            return check_binary_type(node);
         }
         else if constexpr (std::is_same_v<T, UnaryExpr *>)
         {
-            return get_expr_type(node->expr);
+            return check_unary_type(node);
         }
         else
         {
@@ -505,7 +606,8 @@ private:
                            size_t offset = (m_variableCount + 1) * 8;
 
                            if (type == ValueType::Int ||
-                               type == ValueType::String)
+                               type == ValueType::String ||
+                               type == ValueType::Bool)
                            {
                                buffer += "    push rbx\n";
                            }
@@ -557,7 +659,8 @@ private:
                        
                            generate_expr(stmt.expr, buffer);
                        
-                           if(var.type == ValueType::Int)
+                           if(var.type == ValueType::Int ||
+                              var.type == ValueType::Bool)
                            {
                             buffer += "    mov [rbp - ";
                             buffer += std::to_string(var.offset);
@@ -587,7 +690,26 @@ private:
                            ValueType type = get_expr_type(stmt.expr);
                            generate_expr(stmt.expr, buffer);
                        
-                           if (type == ValueType::String)
+                           if (type == ValueType::Bool)
+                           {
+                               // Turn 0/1 into the address of "false"/"true",
+                               // then print it exactly like a string.
+                               add_bool_strings();
+
+                               std::string skip =
+                                   ".L_print_bool_" +
+                                   std::to_string(m_labelCount++);
+
+                               buffer += "    mov rax, rbx\n";
+                               buffer += "    lea rbx, [rel .L_bool_false]\n";
+                               buffer += "    test rax, rax\n";
+                               buffer += "    jz " + skip + "\n";
+                               buffer += "    lea rbx, [rel .L_bool_true]\n";
+                               buffer += skip + ":\n";
+                           }
+
+                           if (type == ValueType::String ||
+                               type == ValueType::Bool)
                            {
                                std::string loop =
                                    ".L_print_string_loop_" +
@@ -700,6 +822,9 @@ private:
         }
 
         auto binary = std::get<BinaryExpr *>(condition->expr);
+
+        // Reject misuse (e.g. bool < int, bool + int) before generating code.
+        get_expr_type(condition);
 
         // true && true
         if (binary->op == "&&")
@@ -955,7 +1080,8 @@ private:
                            Var var = lookup(node.value);
 
                            // int
-                           if (var.type == ValueType::Int)
+                           if (var.type == ValueType::Int ||
+                               var.type == ValueType::Bool)
                            {
                                buffer += "    mov rbx, [rbp - ";
                                buffer += std::to_string(var.offset);
@@ -1000,20 +1126,40 @@ private:
                            buffer += "]\n";
                        }
 
+                       // Bool literal (true / false)
+                       else if constexpr (std::is_same_v<T, NodeExprBoolLit>)
+                       {
+                           buffer += node.value ? "    mov rbx, 1\n"
+                                                : "    mov rbx, 0\n";
+                       }
+
                        // Binary expression
                        else if constexpr (std::is_same_v<T, BinaryExpr *>)
                        {
-                           if (node->op == "<" ||
-                               node->op == ">" ||
-                               node->op == "<=" ||
-                               node->op == ">=" ||
-                               node->op == "==" ||
-                               node->op == "!=" ||
-                               node->op == "&&" ||
-                               node->op == "||")
+                           // Type-check the whole expression first.
+                           get_expr_type(expr);
+
+                           // Comparisons and && / || produce a bool value:
+                           // evaluate them as a condition, then store 1 or 0 in rbx.
+                           if (is_condition_op(node->op))
                            {
-                               throw std::runtime_error(
-                                   "Condition used as expression");
+                               std::string trueLabel =
+                                   ".L" + std::to_string(m_labelCount++);
+                               std::string falseLabel =
+                                   ".L" + std::to_string(m_labelCount++);
+                               std::string endLabel =
+                                   ".L" + std::to_string(m_labelCount++);
+
+                               generate_condition_branch(
+                                   expr, buffer, trueLabel, falseLabel);
+
+                               buffer += trueLabel + ":\n";
+                               buffer += "    mov rbx, 1\n";
+                               buffer += "    jmp " + endLabel + "\n";
+                               buffer += falseLabel + ":\n";
+                               buffer += "    mov rbx, 0\n";
+                               buffer += endLabel + ":\n";
+                               return;
                            }
 
                            ValueType leftType = get_expr_type(node->left);
@@ -1215,6 +1361,9 @@ private:
                        // Unary expression
                        else if constexpr (std::is_same_v<T, UnaryExpr *>)
                        {
+                           // Type-check the whole expression first.
+                           get_expr_type(expr);
+
                            ValueType type =
                                get_expr_type(node->expr);
 
@@ -1248,7 +1397,8 @@ private:
                            }
                            else if (node->op == "!")
                            {
-                               if (type == ValueType::Int)
+                               if (type == ValueType::Int ||
+                                   type == ValueType::Bool)
                                {
                                    buffer +=
                                        "    cmp rbx, 0\n";
@@ -1324,4 +1474,17 @@ private:
 
     std::vector<StringLiteral> m_strings;
     size_t m_stringCount = 0;
+
+    // "true"/"false" literals used by print(bool); added once on first use.
+    bool m_boolStringsAdded = false;
+
+    void add_bool_strings()
+    {
+        if (m_boolStringsAdded)
+            return;
+
+        m_strings.push_back({".L_bool_true", "true"});
+        m_strings.push_back({".L_bool_false", "false"});
+        m_boolStringsAdded = true;
+    }
 };

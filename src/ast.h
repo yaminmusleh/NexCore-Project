@@ -23,6 +23,11 @@ struct NodeExprDoubleLit
     std::string value;
 };
 
+struct NodeExprBoolLit
+{
+    bool value;
+};
+
 struct NodeExprIdentifier
 {
     std::string value;
@@ -51,6 +56,7 @@ struct NodeExpr
         NodeExprDoubleLit,
         NodeExprIdentifier,
         NodeExprStringLit,
+        NodeExprBoolLit,
         BinaryExpr *,
         UnaryExpr *>
         expr;

@@ -30,10 +30,10 @@ Coco/R itself) does not fall under the GNU General Public License.
 #if !defined(COCO_PARSER_H__)
 #define COCO_PARSER_H__
 
+#include "parser_support.h"
 
 
 #include "Scanner.h"
-#include "../src/parser_support.h"
 
 
 

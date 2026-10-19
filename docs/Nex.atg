@@ -1,3 +1,5 @@
+#include "parser_support.h"
+
 COMPILER Nex
 
 CHARACTERS
@@ -622,6 +624,16 @@ PrimaryExpr<NodeExpr *&expr>
              make_double_expr(
                 token_string(t)
              );
+      .)
+      |
+      "true"
+      (.
+          expr = make_bool_expr(true);
+      .)
+      |
+      "false"
+      (.
+          expr = make_bool_expr(false);
       .)
     |
 

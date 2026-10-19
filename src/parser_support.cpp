@@ -96,6 +96,21 @@ NodeExpr *make_double_expr(const std::string &value)
     return new (expr) NodeExpr(
         NodeExpr{NodeExprDoubleLit{val}});
 }
+//---------------------------------bool expression----------------------------//
+NodeExpr *make_bool_expr(bool value)
+{
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized");
+
+    NodeExpr *expr = arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    return new (expr) NodeExpr{
+        NodeExprBoolLit{value}};
+}
 //---------------------------------identifier expression----------------------------//
 NodeExpr *make_identifier_expr(const std::string &value)
 {

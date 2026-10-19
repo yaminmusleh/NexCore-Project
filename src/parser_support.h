@@ -25,6 +25,7 @@ NodeExpr *make_int_expr(const std::string &value);    // int value
 NodeExpr *make_string_expr(const std::string &value); // string value
 NodeExpr *make_float_expr(const std::string &value);  // float value
 NodeExpr *make_double_expr(const std::string &value); // double value
+NodeExpr *make_bool_expr(bool value);                 // true / false
 NodeExpr *make_identifier_expr(const std::string &value);
 NodeStmnt *make_print_statement(NodeExpr *expr);
 
