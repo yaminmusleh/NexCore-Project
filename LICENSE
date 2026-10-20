@@ -30,3 +30,11 @@ Any third-party libraries, tools, or materials used by this project remain subje
 If you wish to use NexCore in a commercial project, redistribute it, or use it in a way not permitted above, please obtain written permission from the author first.
 
 All rights not expressly granted above are reserved, subject to applicable law.
+
+**Use of the NexCore IDE and Language**
+
+Users are permitted to run and use the NexCore IDE and programming language for personal, educational, and evaluation purposes, subject to the restrictions in this license.
+
+Access to the IDE and language does not grant permission to commercially exploit, redistribute, or incorporate the project's original implementation into other products without prior written permission from the author.
+
+Studying the source code for educational purposes is permitted. Copying substantial portions of the implementation, creating derivative products from the original code, or attempting to extract and reuse protected implementation details beyond the permissions granted by this license is not permitted without prior written permission, to the extent allowed by applicable law.
