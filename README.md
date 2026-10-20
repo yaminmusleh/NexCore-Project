@@ -1,62 +1,67 @@
-# 🚀 NexCore Compiler
+# NexCore — Custom Programming Language & Compiler
 
-![Language](https://shields.io)
-![Grammar](https://shields.io)
-![Build](https://shields.io)
-
-**NexCore** is a custom programming language compiler utilizing an `.atg` (Attributed Grammar) definition configured for compiler generators like Coco/R. It parses high-level procedural syntax into an Abstract Syntax Tree (AST) represented via structured C++ nodes.
-
----
-
-## 🗺️ Table of Contents
-- [✨ Key Features](#-key-features)
-- [🔤 Lexical Specifications](#-lexical-specifications)
-  - [Characters](#characters)
-  - [Tokens & Data Types](#tokens--data-types)
-- [📝 Keywords & Syntax Guide](#-keywords-syntax-guide)
-- [🧱 Abstract Syntax Tree (AST) Structure](#-abstract-syntax-tree-ast-structure)
-- [💾 Example Nex Program](#-example-nex-program)
+<p align="center">
+  **A custom programming language built with C++ and Coco/R**
+  
+  Explore the grammar, understand the compiler, and write programs using NexCore's distinctive syntax.
+</p>
 
 ---
 
-## ✨ Key Features
-* **Distinct Control Flow Keywords:** Utilizes unique conditional keywords (`iff`, `otherwise`, `whilst`).
-* **Strong Operator Precedence:** Deeply nested expression rules spanning Logical OR down to Unary operators.
-* **Native C++ AST Nodes:** Built-in semantic actions directly constructing an AST (e.g., `make_let`, `make_if`, `make_while`).
-* **Nested Comment Support:** Full lexical handling of single-line (`//`) and nested multi-line (`/* ... */`) comments.
+## Overview
 
----
+**NexCore** is a custom programming language compiler project built around an attributed grammar (`.atg`) designed for compiler generators such as Coco/R. It parses NexCore source code and constructs an Abstract Syntax Tree (AST) using structured C++ nodes.
 
-## 🔤 Lexical Specifications
+The project explores the core ideas behind programming language design, including lexical analysis, grammar rules, expression precedence, control flow, and syntax tree construction.
 
-### Characters
-* **`letter`**: `A-Z`, `a-z`
-* **`digit`**: `0-9`
-* **`stringChar`**: Any printable character excluding `"`, `\r`, and `\n`.
+## Features
 
-### Tokens & Data Types
+- **Custom language syntax** — distinctive keywords such as `set`, `iff`, `otherwise`, and `whilst`.
+- **Expression parsing** — operator precedence covering logical, equality, relational, arithmetic, and unary expressions.
+- **C++ AST construction** — semantic actions build statement and expression nodes.
+- **Variables and assignment** — declare variables and update their values.
+- **Conditional statements** — write branching logic using `iff` and `otherwise`.
+- **Looping constructs** — use `whilst` and `for` loops.
+- **Comments** — support for single-line and nested multi-line comments.
+- **Desktop studio** — a Qt 6 editor project is available in `studio/`.
 
-| Token | Representation / Pattern | Example |
-| :--- | :--- | :--- |
-| **`identifier`** | `letter { letter \| digit \| "_" }` | `my_variable1` |
-| **`int_lit`** | `digit { digit }` | `42` |
-| **`float_lit`** | `digit { digit } "." digit { digit } "f"` | `3.14f` |
-| **`double_lit`** | `digit { digit } "." digit { digit } "d"` | `0.001d` |
-| **`string_lit`** | `'"' { stringChar } '"'` | `"Hello, Nex!"` |
+## Example
 
----
-
-## 📝 Keywords & Syntax Guide
-
-### Variable Declaration & Assignment
-Variables are explicitly declared using the `set` keyword, and reassigned directly via their identifiers.
 ```rust
-set score = 100;    // Declaration
-score = 150;        // Reassignment
+// Start a NexCore program
+set greeting = "Hello, NexCore!";
+print(greeting);
+
+set index = 0;
+
+whilst (index < 5) {
+    iff (index == 3) {
+        print("Reached three!");
+    } otherwise {
+        print(index);
+    }
+
+    index = index + 1;
+}
+
+exit(0);
 ```
 
-### Conditionals (`iff` / `otherwise`)
-Conditional logic uses `iff` for evaluation, with optional `otherwise` branches that support either a secondary block or direct chaining into another `iff`.
+## Language Syntax
+
+### Variables
+
+Use `set` to declare a variable and its initial value.
+
+```rust
+set score = 100;
+score = 150;
+```
+
+### Conditions
+
+Use `iff` and `otherwise` to control branching.
+
 ```rust
 iff (score >= 100) {
     print("Excellent!");
@@ -67,69 +72,91 @@ iff (score >= 100) {
 }
 ```
 
-### Loops (`for` / `whilst`)
-Standard indefinite looping relies on `whilst`. Definite multi-expression looping relies on `for`.
+### Loops
+
+Use `whilst` for condition-based repetition and `for` for a loop with initialization, condition, and update expressions.
+
 ```rust
-// Whilst Loop
 whilst (count < 10) {
     count = count + 1;
 }
+```
 
-// For Loop
+```rust
 for (set i = 0; i < 5; i = i + 1) {
     print(i);
 }
 ```
 
----
+## Lexical Specifications
 
-## 🧱 Abstract Syntax Tree (AST) Structure
-The production grammar converts parsed code tokens into robust `NodeStmnt` and `NodeExpr` structural objects inside a `program.statements` vectors. 
+| Element | Description | Example |
+|---|---|---|
+| Identifiers | Letters followed by letters, digits, or underscores | `my_variable1` |
+| Integers | Sequences of digits | `42` |
+| Floats | Decimal numbers ending in `f` | `3.14f` |
+| Doubles | Decimal numbers ending in `d` | `0.001d` |
+| Strings | Text enclosed in double quotes | `"Hello!"` |
 
-<details>
-<summary>🔍 Click to view full Expression Hierarchy (Highest to Lowest Precedence)</summary>
+## Operator Precedence
 
-1. **`OrExpr`** (`||`)
-2. **`AndExpr`** (`&&`)
-3. **`EqualityExpr`** (`==`, `!=`)
-4. **`RelationalExpr`** (`<`, `<=`, `>`, `>=`)
-5. **`AddExpr`** (`+`, `-`)
-6. **`MultExpr`** (`*`, `/`, `%`)
-7. **`UnaryExpr`** (`!`, `-`, `+`)
-</details>
+From lowest to highest precedence:
 
----
+1. **Logical OR** — `||`
+2. **Logical AND** — `&&`
+3. **Equality** — `==`, `!=`
+4. **Relational** — `<`, `<=`, `>`, `>=`
+5. **Addition and subtraction** — `+`, `-`
+6. **Multiplication, division, and modulo** — `*`, `/`, `%`
+7. **Unary operators** — `!`, `-`, `+`
 
-## 💾 Example Nex Program
+## Abstract Syntax Tree
 
-Here is an example program demonstrating standard syntax processing supported by the `Nex` compiler production engine:
+The compiler's grammar uses semantic actions to construct C++ nodes representing parsed statements and expressions. The resulting program structure organizes statements under `program.statements`, with expression and statement node types representing the parsed source.
 
-```rust
-// Initialize data types
-set greeting = "Compiler Execution Started";
-print(greeting);
+This structure forms the basis for further compiler development and language features.
 
-set threshold = 10.5f;
-set index = 0;
+## NexCore Studio
 
-whilst (index < 5) {
-    iff (index == 3) {
-        print("Index reached three");
-    }
-    index = index + 1;
-}
+NexCore also includes a Qt 6 desktop editor project.
 
-exit(0);
+- **Location:** [`studio/`](studio/README.md)
+- **Build system:** CMake
+- **Purpose:** A desktop interface for working with the NexCore compiler
+
+Refer to the Studio README for its specific build instructions and requirements.
+
+## Project Structure
+
+```text
+NexCore-Project/
+├── Grammar and compiler source files
+├── studio/
+│   └── README.md
+└── README.md
 ```
 
-## NexCore Studio (desktop editor)
+*The exact source-file layout may evolve as the project develops.*
 
-A Qt 6 desktop editor with Build, Run and Stop for the NexCore compiler is in
-[`studio/`](studio/README.md). It is a separate CMake project; building and using
-the compiler itself is unchanged.
+## Architecture
 
+View the project's architecture diagram:
 
+[**Explore the NexCore architecture diagram**](https://gitdiagram.com/yaminmusleh/nexcore-project)
 
-## NexCore Diagram
+## Project Goals
 
-[![Architecture diagram of yaminmusleh/nexcore-project](https://gitdiagram.com/yaminmusleh/nexcore-project/diagram.png)](https://gitdiagram.com/yaminmusleh/nexcore-project?utm_source=readme&utm_medium=picture)
+NexCore is a continuing exploration of programming language design and compiler development. Its goal is to provide a foundation for experimenting with custom syntax, parsing, AST construction, and desktop development tools.
+
+---
+
+## Copyright
+
+**Copyright © 2026 Yamin Musleh. All rights reserved.**
+
+NexCore and its original source code are the intellectual property of the author.
+
+You may view, study, and make copies of this repository for personal or educational purposes, provided that the original copyright notice and attribution remain intact. You may not claim the project or its original code as your own, remove its attribution, or redistribute or republish the code as your own without prior written permission from the copyright holder.
+
+Viewing or copying the code does not transfer ownership of the intellectual property. No broader permission to reuse or redistribute the project is granted by this notice.
+
