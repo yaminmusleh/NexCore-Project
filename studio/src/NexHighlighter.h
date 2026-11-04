@@ -18,6 +18,7 @@ protected:
 private:
     QTextCharFormat m_controlKeyword;   // iff otherwise for whilst
     QTextCharFormat m_statementKeyword; // set print exit
+    QTextCharFormat m_literalKeyword;   // true false
     QTextCharFormat m_number;
     QTextCharFormat m_string;
     QTextCharFormat m_unterminatedString;

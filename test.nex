@@ -1,3 +1,3 @@
-whilst(true){
-    print("yes");
+iff(true){
+    print("hello");
 }

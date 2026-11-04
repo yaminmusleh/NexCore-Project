@@ -33,7 +33,7 @@ public:
         std::string buffer =
             "global _start\n"
             "section .bss\n"
-            "    .L_print_buffer resb 32\n"
+            "    nex_print_buffer resb 32\n"
             "\n"
             "section .text\n"
             "_start:\n"
@@ -101,7 +101,7 @@ private:
 
         // rbx = integer to print
         // r12 points to the end of our dedicated print buffer.
-        buffer += "    lea r12, [rel .L_print_buffer + 32]\n";
+        buffer += "    lea r12, [rel nex_print_buffer + 32]\n";
 
         // rax = integer
         buffer += "    mov rax, rbx\n";
@@ -173,7 +173,7 @@ private:
         buffer += "    mov rdi, 1\n";
         buffer += "    mov rsi, r12\n";
 
-        buffer += "    lea rdx, [rel .L_print_buffer + 32]\n";
+        buffer += "    lea rdx, [rel nex_print_buffer + 32]\n";
         buffer += "    sub rdx, r12\n";
 
         buffer += "    syscall\n";
@@ -181,10 +181,10 @@ private:
         // --------------------------------------------------
         // Newline
         // --------------------------------------------------
-        buffer += "    mov byte [rel .L_print_buffer], 10\n";
+        buffer += "    mov byte [rel nex_print_buffer], 10\n";
         buffer += "    mov rax, 1\n";
         buffer += "    mov rdi, 1\n";
-        buffer += "    lea rsi, [rel .L_print_buffer]\n";
+        buffer += "    lea rsi, [rel nex_print_buffer]\n";
         buffer += "    mov rdx, 1\n";
         buffer += "    syscall\n";
     }
@@ -701,10 +701,10 @@ private:
                                    std::to_string(m_labelCount++);
 
                                buffer += "    mov rax, rbx\n";
-                               buffer += "    lea rbx, [rel .L_bool_false]\n";
+                               buffer += "    lea rbx, [rel nex_bool_false]\n";
                                buffer += "    test rax, rax\n";
                                buffer += "    jz " + skip + "\n";
-                               buffer += "    lea rbx, [rel .L_bool_true]\n";
+                               buffer += "    lea rbx, [rel nex_bool_true]\n";
                                buffer += skip + ":\n";
                            }
 
@@ -1117,7 +1117,7 @@ private:
                        {
 
                            std::string label =
-                               ".L_string_" + std::to_string(m_stringCount++);
+                               "nex_str_" + std::to_string(m_stringCount++);
 
                            m_strings.push_back({label, node.value});
 
@@ -1483,8 +1483,8 @@ private:
         if (m_boolStringsAdded)
             return;
 
-        m_strings.push_back({".L_bool_true", "true"});
-        m_strings.push_back({".L_bool_false", "false"});
+        m_strings.push_back({"nex_bool_true", "true"});
+        m_strings.push_back({"nex_bool_false", "false"});
         m_boolStringsAdded = true;
     }
 };

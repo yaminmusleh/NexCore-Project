@@ -267,4 +267,28 @@ check 1b_neg_08_int_equals_literal "COMPILE_FAIL(1): error: Cannot compare int w
 print(1 == true);
 N
 
+
+# ======== Stage 2a: shared symbols must be non-local labels ========
+# Functions add non-local labels ("nex_fn_x:"); any shared data symbol written
+# as a local ".L_..." label would then stop resolving. Simulate that: insert a
+# non-local label before .rodata in the generated assembly and assemble it.
+probe_labels() {
+    local name=2a_01_no_shared_local_labels
+    cat > probe.nex <<'N'
+set s = "hi";
+print(s);
+print(1 < 2);
+print(42);
+print(true);
+N
+    if ! "$EXE" probe.nex >/dev/null 2>&1; then
+        echo "FAIL  $name"; echo "   compile failed"; fail=$((fail+1)); return
+    fi
+    sed 's/^section .rodata/nex_probe_fn:\n    ret\nsection .rodata/' out.asm > probe.asm
+    local err; err=$(nasm -f elf64 probe.asm -o probe.o 2>&1)
+    if [ $? -eq 0 ]; then echo "PASS  $name"; pass=$((pass+1))
+    else echo "FAIL  $name"; echo "   $(echo "$err" | head -1)"; fail=$((fail+1)); fi
+}
+probe_labels
+
 echo; echo "passed=$pass failed=$fail"; [ $fail -eq 0 ]
