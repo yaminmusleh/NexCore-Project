@@ -48,6 +48,12 @@ struct UnaryExpr
     NodeExpr *expr;
 };
 
+struct CallExpr
+{
+    std::string name;
+    std::vector<NodeExpr *> args;
+};
+
 struct NodeExpr
 {
     std::variant<
@@ -58,7 +64,8 @@ struct NodeExpr
         NodeExprStringLit,
         NodeExprBoolLit,
         BinaryExpr *,
-        UnaryExpr *>
+        UnaryExpr *,
+        CallExpr *>
         expr;
 };
 
@@ -86,7 +93,13 @@ struct NodeStmntPrint
 
 struct NodeStmntCall
 {
-    std::string name; // function(); as a statement
+    std::string name; // function(args); as a statement
+    std::vector<NodeExpr *> args;
+};
+
+struct NodeStmntGive
+{
+    NodeExpr *expr = nullptr; // give expr;  or  give;
 };
 
 struct NodeScope;
@@ -105,7 +118,8 @@ struct NodeStmnt
         NodeStmntPrint,
         NodeStmntWhile *,
         NodeStmntFor *,
-        NodeStmntCall>
+        NodeStmntCall,
+        NodeStmntGive>
         stmnt;
     // Simple statement nodes are stored by value.
     // Recursive/complex AST structures are stored by pointer
@@ -139,9 +153,18 @@ struct NodeStmntFor
     NodeScope *scope = nullptr;
 };
 
+// Type names are kept as written in the source: int float double text bool.
+struct NodeParam
+{
+    std::string name;
+    std::string type;
+};
+
 struct NodeFunc
 {
     std::string name;
+    std::vector<NodeParam> params;
+    std::string return_type; // empty = gives nothing
     NodeScope *scope = nullptr;
 };
 
