@@ -60,12 +60,41 @@ Nex
 .)
 =
 {
+    FuncDecl
+  |
     Statement<statement>
     (.
         if (statement != nullptr)
             program.statements.push_back(statement);
     .)
 }
+.
+
+
+FuncDecl
+(.
+    std::string name;
+    NodeStmnt *body_statement = nullptr;
+.)
+=
+    "func"
+    identifier
+    (.
+        name = token_string(t);
+    .)
+    open_paren
+    close_paren
+    BlockStmt<body_statement>
+    (.
+        program.functions.push_back(
+            make_function(
+                name,
+                std::get<NodeScope *>(
+                    body_statement->stmnt
+                )
+            )
+        );
+    .)
 .
 
 
@@ -82,7 +111,7 @@ Statement<NodeStmnt *&statement>
     | WhileStmt<statement>
     | BlockStmt<statement>
     | PrintStmnt<statement>
-    | AssignStmt<statement>
+    | IdentifierStmt<statement>
     
 .
 
@@ -107,7 +136,7 @@ SetStmt<NodeStmnt *&statement>
 .
 
 
-AssignStmt<NodeStmnt *&statement>
+IdentifierStmt<NodeStmnt *&statement>
 (.
     std::string name;
     NodeExpr *expr = nullptr;
@@ -117,12 +146,21 @@ AssignStmt<NodeStmnt *&statement>
     (.
         name = token_string(t);
     .)
-    assign
-    Expression<expr>
-    semi
-    (.
-        statement = make_assign(name, expr);
-    .)
+    (
+        assign
+        Expression<expr>
+        semi
+        (.
+            statement = make_assign(name, expr);
+        .)
+      |
+        open_paren
+        close_paren
+        semi
+        (.
+            statement = make_call_stmt(name);
+        .)
+    )
 .
 
 
