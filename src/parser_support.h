@@ -66,10 +66,23 @@ NodeStmnt *make_for(
     NodeStmnt *increment,
     NodeScope *scope);
 
-NodeStmnt *make_call_stmt(const std::string &name);
+using ParamList = std::vector<NodeParam>;
+using ExprList = std::vector<NodeExpr *>;
+
+NodeStmnt *make_call_stmt(
+    const std::string &name,
+    const ExprList &args);
+
+NodeExpr *make_call_expr(
+    const std::string &name,
+    const ExprList &args);
+
+NodeStmnt *make_give(NodeExpr *expr);
 
 NodeFunc *make_function(
     const std::string &name,
+    const ParamList &params,
+    const std::string &return_type,
     NodeScope *scope);
 
 NodeStmntIf *get_if_statement(NodeStmnt *statement);
