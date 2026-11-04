@@ -84,6 +84,11 @@ struct NodeStmntPrint
     NodeExpr *expr;
 };
 
+struct NodeStmntCall
+{
+    std::string name; // function(); as a statement
+};
+
 struct NodeScope;
 struct NodeStmntIf;
 struct NodeStmntWhile;
@@ -99,7 +104,8 @@ struct NodeStmnt
         NodeStmntAssign,
         NodeStmntPrint,
         NodeStmntWhile *,
-        NodeStmntFor *>
+        NodeStmntFor *,
+        NodeStmntCall>
         stmnt;
     // Simple statement nodes are stored by value.
     // Recursive/complex AST structures are stored by pointer
@@ -133,7 +139,14 @@ struct NodeStmntFor
     NodeScope *scope = nullptr;
 };
 
+struct NodeFunc
+{
+    std::string name;
+    NodeScope *scope = nullptr;
+};
+
 struct NodeProgram
 {
     std::vector<NodeStmnt *> statements;
+    std::vector<NodeFunc *> functions;
 };
