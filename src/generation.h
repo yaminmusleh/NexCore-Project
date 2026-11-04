@@ -30,6 +30,19 @@ public:
         m_stringCount = 0;
         m_boolStringsAdded = false;
 
+        // Collect function signatures first, so a function can be called
+        // before the place where it is defined.
+        m_functions.clear();
+        for (NodeFunc *function : m_root.functions)
+        {
+            if (m_functions.count(function->name))
+            {
+                throw std::runtime_error(
+                    "Function '" + function->name + "' is already defined");
+            }
+            m_functions[function->name] = function;
+        }
+
         std::string buffer =
             "global _start\n"
             "section .bss\n"
@@ -62,6 +75,12 @@ public:
                 "    mov rax, 60\n"
                 "    syscall\n";
         }
+
+        // Functions live after _start. Top-level code never falls into them:
+        // it always ends with an exit syscall.
+        for (NodeFunc *function : m_root.functions)
+            generate_function(function, buffer);
+
         buffer +=
             "\nsection .rodata\n";
 
@@ -641,6 +660,10 @@ private:
                        else if constexpr (std::is_same_v<T, NodeStmntFor *>)
                        {
                            generate_for(stmt, buffer, has_exit);
+                       }
+                       else if constexpr (std::is_same_v<T, NodeStmntCall>)
+                       {
+                           generate_call_statement(stmt, buffer);
                        }
                        else if constexpr (std::is_same_v<T, NodeStmntAssign>)
                        {
@@ -1440,7 +1463,52 @@ private:
                    expr->expr);
     }
 
-    //----------------------------------------------------//
+    // ---- functions -----
+
+    static std::string function_label(const std::string &name)
+    {
+        return "nex_fn_" + name;
+    }
+
+    // Emits one function. It gets its own frame, its own scopes and its own
+    // variable count; it cannot see the caller's variables.
+    void generate_function(NodeFunc *function, std::string &buffer)
+    {
+        auto savedScopes = std::move(m_scopes);
+        size_t savedVariableCount = m_variableCount;
+
+        m_scopes.clear();
+        m_scopes.emplace_back();
+        m_variableCount = 0;
+
+        buffer += "\n" + function_label(function->name) + ":\n";
+        buffer += "    push rbp\n";
+        buffer += "    mov rbp, rsp\n";
+
+        bool terminated = false;
+        generate_scope(function->scope, buffer, terminated);
+
+        if (!terminated)
+        {
+            buffer += "    mov rsp, rbp\n";
+            buffer += "    pop rbp\n";
+            buffer += "    ret\n";
+        }
+
+        m_scopes = std::move(savedScopes);
+        m_variableCount = savedVariableCount;
+    }
+
+    void generate_call_statement(const NodeStmntCall &call, std::string &buffer)
+    {
+        auto found = m_functions.find(call.name);
+
+        if (found == m_functions.end())
+            throw std::runtime_error("Unknown function: " + call.name);
+
+        buffer += "    call " + function_label(call.name) + "\n";
+    }
+
     Var lookup(const std::string &name)
     {
         for (auto it = m_scopes.rbegin();
@@ -1458,6 +1526,8 @@ private:
     }
 
     NodeProgram m_root;
+
+    std::unordered_map<std::string, NodeFunc *> m_functions;
 
     // Stores variables for each scope.
     std::vector<std::unordered_map<std::string, Var>> m_scopes;
