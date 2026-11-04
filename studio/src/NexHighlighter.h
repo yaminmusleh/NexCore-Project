@@ -16,7 +16,7 @@ protected:
     void highlightBlock(const QString &text) override;
 
 private:
-    QTextCharFormat m_controlKeyword;   // iff otherwise for whilst
+    QTextCharFormat m_controlKeyword;   // iff, otherwise, for, whilst, func
     QTextCharFormat m_statementKeyword; // set print exit
     QTextCharFormat m_literalKeyword;   // true false
     QTextCharFormat m_number;
