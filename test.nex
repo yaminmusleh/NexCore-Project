@@ -1,3 +1,5 @@
-iff(true){
+func helloPrint(){
     print("hello");
 }
+
+helloPrint();

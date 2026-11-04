@@ -92,34 +92,60 @@ void Parser::Nex() {
 		NodeStmnt *statement = nullptr;
 		
 		while (StartOf(1)) {
-			Statement(statement);
-			if (statement != nullptr)
-			   program.statements.push_back(statement);
-			
+			if (la->kind == 26 /* "func" */) {
+				FuncDecl();
+			} else {
+				Statement(statement);
+				if (statement != nullptr)
+				   program.statements.push_back(statement);
+				
+			}
 		}
+}
+
+void Parser::FuncDecl() {
+		std::string name;
+		NodeStmnt *body_statement = nullptr;
+		
+		Expect(26 /* "func" */);
+		Expect(_identifier);
+		name = token_string(t);
+		
+		Expect(_open_paren);
+		Expect(_close_paren);
+		BlockStmt(body_statement);
+		program.functions.push_back(
+		   make_function(
+		       name,
+		       std::get<NodeScope *>(
+		           body_statement->stmnt
+		       )
+		   )
+		);
+		
 }
 
 void Parser::Statement(NodeStmnt *&statement) {
 		statement = nullptr;
 		
 		switch (la->kind) {
-		case 26 /* "set" */: {
+		case 27 /* "set" */: {
 			SetStmt(statement);
 			break;
 		}
-		case 27 /* "exit" */: {
+		case 28 /* "exit" */: {
 			ExitStmt(statement);
 			break;
 		}
-		case 29 /* "iff" */: {
+		case 30 /* "iff" */: {
 			IfStmt(statement);
 			break;
 		}
-		case 31 /* "for" */: {
+		case 32 /* "for" */: {
 			ForStmt(statement);
 			break;
 		}
-		case 32 /* "whilst" */: {
+		case 33 /* "whilst" */: {
 			WhileStmt(statement);
 			break;
 		}
@@ -127,23 +153,42 @@ void Parser::Statement(NodeStmnt *&statement) {
 			BlockStmt(statement);
 			break;
 		}
-		case 28 /* "print" */: {
+		case 29 /* "print" */: {
 			PrintStmnt(statement);
 			break;
 		}
 		case _identifier: {
-			AssignStmt(statement);
+			IdentifierStmt(statement);
 			break;
 		}
-		default: SynErr(36); break;
+		default: SynErr(37); break;
 		}
+}
+
+void Parser::BlockStmt(NodeStmnt *&statement) {
+		NodeScope *scope = nullptr;
+		NodeStmnt *child = nullptr;
+		
+		Expect(_open_scope);
+		scope = make_scope();
+		
+		while (StartOf(2)) {
+			Statement(child);
+			if (child != nullptr)
+			   scope->statements.push_back(child);
+			
+		}
+		Expect(_close_scope);
+		statement =
+		   make_scope_statement(scope);
+		
 }
 
 void Parser::SetStmt(NodeStmnt *&statement) {
 		std::string name;
 		NodeExpr *expr = nullptr;
 		
-		Expect(26 /* "set" */);
+		Expect(27 /* "set" */);
 		Expect(_identifier);
 		name = token_string(t);
 		
@@ -157,7 +202,7 @@ void Parser::SetStmt(NodeStmnt *&statement) {
 void Parser::ExitStmt(NodeStmnt *&statement) {
 		NodeExpr *expr = nullptr;
 		
-		Expect(27 /* "exit" */);
+		Expect(28 /* "exit" */);
 		Expect(_open_paren);
 		Expression(expr);
 		Expect(_close_paren);
@@ -173,7 +218,7 @@ void Parser::IfStmt(NodeStmnt *&statement) {
 		NodeStmntIf *else_if = nullptr;
 		NodeStmnt *else_statement = nullptr;
 		
-		Expect(29 /* "iff" */);
+		Expect(30 /* "iff" */);
 		Expect(_open_paren);
 		Expression(condition);
 		Expect(_close_paren);
@@ -181,9 +226,9 @@ void Parser::IfStmt(NodeStmnt *&statement) {
 		scope =
 		   std::get<NodeScope *>(statement->stmnt);
 		
-		if (la->kind == 30 /* "otherwise" */) {
+		if (la->kind == 31 /* "otherwise" */) {
 			Get();
-			if (la->kind == 29 /* "iff" */) {
+			if (la->kind == 30 /* "iff" */) {
 				IfStmt(else_statement);
 				else_if =
 				   get_if_statement(else_statement);
@@ -195,7 +240,7 @@ void Parser::IfStmt(NodeStmnt *&statement) {
 				       else_statement->stmnt
 				   );
 				
-			} else SynErr(37);
+			} else SynErr(38);
 		}
 		statement =
 		   make_if(
@@ -215,7 +260,7 @@ void Parser::ForStmt(NodeStmnt *&statement) {
 		NodeStmnt *body_statement = nullptr;
 		NodeScope *scope = nullptr;
 		
-		Expect(31 /* "for" */);
+		Expect(32 /* "for" */);
 		Expect(_open_paren);
 		ForInit(initialisation);
 		Expect(_semi);
@@ -243,7 +288,7 @@ void Parser::WhileStmt(NodeStmnt *&statement) {
 		NodeStmnt *body_statement = nullptr;
 		NodeScope *scope = nullptr;
 		
-		Expect(32 /* "whilst" */);
+		Expect(33 /* "whilst" */);
 		Expect(_open_paren);
 		Expression(condition);
 		Expect(_close_paren);
@@ -261,29 +306,10 @@ void Parser::WhileStmt(NodeStmnt *&statement) {
 		
 }
 
-void Parser::BlockStmt(NodeStmnt *&statement) {
-		NodeScope *scope = nullptr;
-		NodeStmnt *child = nullptr;
-		
-		Expect(_open_scope);
-		scope = make_scope();
-		
-		while (StartOf(1)) {
-			Statement(child);
-			if (child != nullptr)
-			   scope->statements.push_back(child);
-			
-		}
-		Expect(_close_scope);
-		statement =
-		   make_scope_statement(scope);
-		
-}
-
 void Parser::PrintStmnt(NodeStmnt *&statement) {
 		NodeExpr *expr = nullptr;
 		
-		Expect(28 /* "print" */);
+		Expect(29 /* "print" */);
 		Expect(_open_paren);
 		Expression(expr);
 		Expect(_close_paren);
@@ -292,18 +318,26 @@ void Parser::PrintStmnt(NodeStmnt *&statement) {
 		
 }
 
-void Parser::AssignStmt(NodeStmnt *&statement) {
+void Parser::IdentifierStmt(NodeStmnt *&statement) {
 		std::string name;
 		NodeExpr *expr = nullptr;
 		
 		Expect(_identifier);
 		name = token_string(t);
 		
-		Expect(_assign);
-		Expression(expr);
-		Expect(_semi);
-		statement = make_assign(name, expr);
-		
+		if (la->kind == _assign) {
+			Get();
+			Expression(expr);
+			Expect(_semi);
+			statement = make_assign(name, expr);
+			
+		} else if (la->kind == _open_paren) {
+			Get();
+			Expect(_close_paren);
+			Expect(_semi);
+			statement = make_call_stmt(name);
+			
+		} else SynErr(39);
 }
 
 void Parser::Expression(NodeExpr *&expr) {
@@ -314,7 +348,7 @@ void Parser::ForInit(NodeStmnt *&statement) {
 		std::string name;
 		NodeExpr *expr = nullptr;
 		
-		if (la->kind == 26 /* "set" */) {
+		if (la->kind == 27 /* "set" */) {
 			Get();
 			Expect(_identifier);
 			name = token_string(t);
@@ -331,7 +365,7 @@ void Parser::ForInit(NodeStmnt *&statement) {
 			Expression(expr);
 			statement = make_assign(name, expr);
 			
-		} else SynErr(38);
+		} else SynErr(40);
 }
 
 void Parser::ForIncrement(NodeStmnt *&statement) {
@@ -416,7 +450,7 @@ void Parser::RelationalExpr(NodeExpr *&left) {
 		std::string op;
 		
 		AddExpr(left);
-		while (StartOf(2)) {
+		while (StartOf(3)) {
 			if (la->kind == _less) {
 				Get();
 			} else if (la->kind == _less_equal) {
@@ -510,9 +544,9 @@ void Parser::UnaryExpr(NodeExpr *&expr) {
 			       operand
 			   );
 			
-		} else if (StartOf(3)) {
+		} else if (StartOf(4)) {
 			PrimaryExpr(expr);
-		} else SynErr(39);
+		} else SynErr(41);
 }
 
 void Parser::PrimaryExpr(NodeExpr *&expr) {
@@ -562,13 +596,13 @@ void Parser::PrimaryExpr(NodeExpr *&expr) {
 			
 			break;
 		}
-		case 33 /* "true" */: {
+		case 34 /* "true" */: {
 			Get();
 			expr = make_bool_expr(true);
 			
 			break;
 		}
-		case 34 /* "false" */: {
+		case 35 /* "false" */: {
 			Get();
 			expr = make_bool_expr(false);
 			
@@ -580,7 +614,7 @@ void Parser::PrimaryExpr(NodeExpr *&expr) {
 			Expect(_close_paren);
 			break;
 		}
-		default: SynErr(40); break;
+		default: SynErr(42); break;
 		}
 }
 
@@ -685,7 +719,7 @@ void Parser::Parse() {
 }
 
 Parser::Parser(Scanner *scanner) {
-	maxT = 35;
+	maxT = 36;
 
 	ParserInitCaller<Parser>::CallInit(this);
 	dummyToken = NULL;
@@ -700,11 +734,12 @@ bool Parser::StartOf(int s) {
 	const bool T = true;
 	const bool x = false;
 
-	static bool set[4][37] = {
-		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,T,x,x, x,x,T,T, T,T,x,T, T,x,x,x, x},
-		{x,x,x,x, T,T,T,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x},
-		{x,x,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,x,x, x,x,x,x, x,T,T,x, x}
+	static bool set[5][38] = {
+		{T,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,T,x,x, x,x,T,T, T,T,T,x, T,T,x,x, x,x},
+		{x,x,x,x, x,x,x,x, x,x,x,T, x,x,x,x, x,x,x,x, x,T,x,x, x,x,x,T, T,T,T,x, T,T,x,x, x,x},
+		{x,x,x,x, T,T,T,T, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x,x,x, x,x},
+		{x,x,x,x, x,x,x,x, x,T,x,x, x,x,x,x, x,x,x,x, x,T,T,T, T,T,x,x, x,x,x,x, x,x,T,T, x,x}
 	};
 
 
@@ -751,21 +786,23 @@ void Errors::SynErr(int line, int col, int n) {
 			case 23: s = coco_string_create(L"float_lit expected"); break;
 			case 24: s = coco_string_create(L"double_lit expected"); break;
 			case 25: s = coco_string_create(L"string_lit expected"); break;
-			case 26: s = coco_string_create(L"\"set\" expected"); break;
-			case 27: s = coco_string_create(L"\"exit\" expected"); break;
-			case 28: s = coco_string_create(L"\"print\" expected"); break;
-			case 29: s = coco_string_create(L"\"iff\" expected"); break;
-			case 30: s = coco_string_create(L"\"otherwise\" expected"); break;
-			case 31: s = coco_string_create(L"\"for\" expected"); break;
-			case 32: s = coco_string_create(L"\"whilst\" expected"); break;
-			case 33: s = coco_string_create(L"\"true\" expected"); break;
-			case 34: s = coco_string_create(L"\"false\" expected"); break;
-			case 35: s = coco_string_create(L"??? expected"); break;
-			case 36: s = coco_string_create(L"invalid Statement"); break;
-			case 37: s = coco_string_create(L"invalid IfStmt"); break;
-			case 38: s = coco_string_create(L"invalid ForInit"); break;
-			case 39: s = coco_string_create(L"invalid UnaryExpr"); break;
-			case 40: s = coco_string_create(L"invalid PrimaryExpr"); break;
+			case 26: s = coco_string_create(L"\"func\" expected"); break;
+			case 27: s = coco_string_create(L"\"set\" expected"); break;
+			case 28: s = coco_string_create(L"\"exit\" expected"); break;
+			case 29: s = coco_string_create(L"\"print\" expected"); break;
+			case 30: s = coco_string_create(L"\"iff\" expected"); break;
+			case 31: s = coco_string_create(L"\"otherwise\" expected"); break;
+			case 32: s = coco_string_create(L"\"for\" expected"); break;
+			case 33: s = coco_string_create(L"\"whilst\" expected"); break;
+			case 34: s = coco_string_create(L"\"true\" expected"); break;
+			case 35: s = coco_string_create(L"\"false\" expected"); break;
+			case 36: s = coco_string_create(L"??? expected"); break;
+			case 37: s = coco_string_create(L"invalid Statement"); break;
+			case 38: s = coco_string_create(L"invalid IfStmt"); break;
+			case 39: s = coco_string_create(L"invalid IdentifierStmt"); break;
+			case 40: s = coco_string_create(L"invalid ForInit"); break;
+			case 41: s = coco_string_create(L"invalid UnaryExpr"); break;
+			case 42: s = coco_string_create(L"invalid PrimaryExpr"); break;
 
 		default:
 		{

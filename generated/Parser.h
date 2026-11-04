@@ -107,15 +107,16 @@ public:
 	void SemErr(const wchar_t* msg);
 
 	void Nex();
+	void FuncDecl();
 	void Statement(NodeStmnt *&statement);
+	void BlockStmt(NodeStmnt *&statement);
 	void SetStmt(NodeStmnt *&statement);
 	void ExitStmt(NodeStmnt *&statement);
 	void IfStmt(NodeStmnt *&statement);
 	void ForStmt(NodeStmnt *&statement);
 	void WhileStmt(NodeStmnt *&statement);
-	void BlockStmt(NodeStmnt *&statement);
 	void PrintStmnt(NodeStmnt *&statement);
-	void AssignStmt(NodeStmnt *&statement);
+	void IdentifierStmt(NodeStmnt *&statement);
 	void Expression(NodeExpr *&expr);
 	void ForInit(NodeStmnt *&statement);
 	void ForIncrement(NodeStmnt *&statement);

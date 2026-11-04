@@ -183,7 +183,7 @@ void NexHighlighter::highlightBlock(const QString &text)
             const QStringView word = QStringView(text).mid(start, i - start);
 
             if (word == u"iff" || word == u"otherwise" ||
-                word == u"for" || word == u"whilst")
+                word == u"for" || word == u"whilst" || word == u"func")
             {
                 setFormat(start, i - start, m_controlKeyword);
             }
@@ -196,7 +196,7 @@ void NexHighlighter::highlightBlock(const QString &text)
             {
                 setFormat(start, i - start, m_literalKeyword);
             }
-
+            
             continue;
         }
 
