@@ -352,17 +352,56 @@ NodeStmnt *make_for(
         for_statement};
 }
 
-NodeStmnt *make_call_stmt(const std::string &name)
+NodeStmnt *make_call_stmt(
+    const std::string &name,
+    const ExprList &args)
 {
     NodeStmnt *statement =
         make_statement();
 
     return new (statement) NodeStmnt{
-        NodeStmntCall{name}};
+        NodeStmntCall{name, args}};
+}
+
+NodeExpr *make_call_expr(
+    const std::string &name,
+    const ExprList &args)
+{
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized");
+
+    CallExpr *call =
+        arena->alloc<CallExpr>();
+
+    if (!call)
+        throw std::bad_alloc{};
+
+    new (call) CallExpr{name, args};
+
+    NodeExpr *expr =
+        arena->alloc<NodeExpr>();
+
+    if (!expr)
+        throw std::bad_alloc{};
+
+    return new (expr) NodeExpr{
+        call};
+}
+
+NodeStmnt *make_give(NodeExpr *expr)
+{
+    NodeStmnt *statement =
+        make_statement();
+
+    return new (statement) NodeStmnt{
+        NodeStmntGive{expr}};
 }
 
 NodeFunc *make_function(
     const std::string &name,
+    const ParamList &params,
+    const std::string &return_type,
     NodeScope *scope)
 {
     if (!arena)
@@ -377,5 +416,7 @@ NodeFunc *make_function(
 
     return new (function) NodeFunc{
         name,
+        params,
+        return_type,
         scope};
 }
