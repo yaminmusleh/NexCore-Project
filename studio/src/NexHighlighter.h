@@ -16,9 +16,10 @@ protected:
     void highlightBlock(const QString &text) override;
 
 private:
-    QTextCharFormat m_controlKeyword;   // iff, otherwise, for, whilst, func
+    QTextCharFormat m_controlKeyword;   // iff otherwise for whilst func give gives
     QTextCharFormat m_statementKeyword; // set print exit
     QTextCharFormat m_literalKeyword;   // true false
+    QTextCharFormat m_typeKeyword;      // int float double text bool
     QTextCharFormat m_number;
     QTextCharFormat m_string;
     QTextCharFormat m_unterminatedString;
