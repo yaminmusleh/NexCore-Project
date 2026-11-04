@@ -22,6 +22,8 @@ TOKENS
     greater_equal = ">=".
 
     semi          = ";".
+    comma         = ",".
+    colon         = ":".
     open_paren    = "(".
     close_paren   = ")".
     open_scope    = "{".
@@ -74,6 +76,8 @@ Nex
 FuncDecl
 (.
     std::string name;
+    std::string return_type;
+    ParamList params;
     NodeStmnt *body_statement = nullptr;
 .)
 =
@@ -83,17 +87,93 @@ FuncDecl
         name = token_string(t);
     .)
     open_paren
+    [
+        Param<params>
+        {
+            comma
+            Param<params>
+        }
+    ]
     close_paren
+    [
+        "gives"
+        TypeName<return_type>
+    ]
     BlockStmt<body_statement>
     (.
         program.functions.push_back(
             make_function(
                 name,
+                params,
+                return_type,
                 std::get<NodeScope *>(
                     body_statement->stmnt
                 )
             )
         );
+    .)
+.
+
+
+Param<ParamList &params>
+(.
+    std::string name;
+    std::string type;
+.)
+=
+    identifier
+    (.
+        name = token_string(t);
+    .)
+    colon
+    TypeName<type>
+    (.
+        params.push_back(NodeParam{name, type});
+    .)
+.
+
+
+TypeName<std::string &type>
+=
+      "int"    (. type = "int"; .)
+    | "float"  (. type = "float"; .)
+    | "double" (. type = "double"; .)
+    | "text"   (. type = "text"; .)
+    | "bool"   (. type = "bool"; .)
+.
+
+
+ArgList<ExprList &args>
+(.
+    NodeExpr *arg = nullptr;
+.)
+=
+    Expression<arg>
+    (.
+        args.push_back(arg);
+    .)
+    {
+        comma
+        Expression<arg>
+        (.
+            args.push_back(arg);
+        .)
+    }
+.
+
+
+GiveStmt<NodeStmnt *&statement>
+(.
+    NodeExpr *expr = nullptr;
+.)
+=
+    "give"
+    [
+        Expression<expr>
+    ]
+    semi
+    (.
+        statement = make_give(expr);
     .)
 .
 
@@ -111,6 +191,7 @@ Statement<NodeStmnt *&statement>
     | WhileStmt<statement>
     | BlockStmt<statement>
     | PrintStmnt<statement>
+    | GiveStmt<statement>
     | IdentifierStmt<statement>
     
 .
@@ -140,6 +221,7 @@ IdentifierStmt<NodeStmnt *&statement>
 (.
     std::string name;
     NodeExpr *expr = nullptr;
+    ExprList args;
 .)
 =
     identifier
@@ -155,10 +237,13 @@ IdentifierStmt<NodeStmnt *&statement>
         .)
       |
         open_paren
+        [
+            ArgList<args>
+        ]
         close_paren
         semi
         (.
-            statement = make_call_stmt(name);
+            statement = make_call_stmt(name, args);
         .)
     )
 .
@@ -620,13 +705,31 @@ UnaryExpr<NodeExpr *&expr>
 
 
 PrimaryExpr<NodeExpr *&expr>
+(.
+    std::string name;
+    ExprList args;
+    bool is_call = false;
+.)
 =
       identifier
       (.
-          expr =
-              make_identifier_expr(
-                  token_string(t)
-              );
+          name = token_string(t);
+      .)
+      [
+          open_paren
+          (.
+              is_call = true;
+          .)
+          [
+              ArgList<args>
+          ]
+          close_paren
+      ]
+      (.
+          if (is_call)
+              expr = make_call_expr(name, args);
+          else
+              expr = make_identifier_expr(name);
       .)
 
     |

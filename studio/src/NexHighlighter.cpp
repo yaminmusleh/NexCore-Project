@@ -39,6 +39,7 @@ NexHighlighter::NexHighlighter(QTextDocument *document)
 
     m_literalKeyword = colored(QColor(0xe5, 0xc0, 0x7b));
     m_literalKeyword.setFontWeight(QFont::DemiBold);
+    m_typeKeyword = colored(QColor(0x4e, 0xc9, 0xb0));
 
     m_number = colored(QColor(0xf2, 0xa6, 0x5a));
     m_string = colored(QColor(0x98, 0xc3, 0x79));
@@ -182,13 +183,11 @@ void NexHighlighter::highlightBlock(const QString &text)
 
             const QStringView word = QStringView(text).mid(start, i - start);
 
-            if (word == u"iff" || word == u"otherwise" ||
-                word == u"for" || word == u"whilst" || word == u"func")
+            if (word == u"iff" || word == u"otherwise" || word == u"for" || word == u"whilst" || word == u"func" || word == u"give" || word == u"gives")
             {
                 setFormat(start, i - start, m_controlKeyword);
             }
-            else if (word == u"set" || word == u"print" ||
-                     word == u"exit")
+            else if (word == u"set" || word == u"print" || word == u"exit")
             {
                 setFormat(start, i - start, m_statementKeyword);
             }
@@ -196,7 +195,11 @@ void NexHighlighter::highlightBlock(const QString &text)
             {
                 setFormat(start, i - start, m_literalKeyword);
             }
-            
+            else if (word == u"int" || word == u"float" || word == u"double" || word == u"text" || word == u"bool")
+            {
+                setFormat(start, i - start, m_typeKeyword);
+            }
+
             continue;
         }
 
