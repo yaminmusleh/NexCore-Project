@@ -32,16 +32,8 @@ public:
 
         // Collect function signatures first, so a function can be called
         // before the place where it is defined.
-        m_functions.clear();
-        for (NodeFunc *function : m_root.functions)
-        {
-            if (m_functions.count(function->name))
-            {
-                throw std::runtime_error(
-                    "Function '" + function->name + "' is already defined");
-            }
-            m_functions[function->name] = function;
-        }
+        m_currentFunction = nullptr;
+        collect_functions();
 
         std::string buffer =
             "global _start\n"
@@ -581,6 +573,19 @@ private:
         {
             return check_unary_type(node);
         }
+        else if constexpr (std::is_same_v<T, CallExpr *>)
+        {
+            const FuncInfo &info = check_call(node->name, node->args);
+
+            if (!info.returnsValue)
+            {
+                throw std::runtime_error(
+                    "Function '" + node->name +
+                    "' does not give a value, so it cannot be used in an expression");
+            }
+
+            return info.returnType;
+        }
         else
         {
             throw std::runtime_error(
@@ -664,6 +669,11 @@ private:
                        else if constexpr (std::is_same_v<T, NodeStmntCall>)
                        {
                            generate_call_statement(stmt, buffer);
+                       }
+                       else if constexpr (std::is_same_v<T, NodeStmntGive>)
+                       {
+                           generate_give(stmt, buffer);
+                           has_exit = true; // nothing after give is reachable
                        }
                        else if constexpr (std::is_same_v<T, NodeStmntAssign>)
                        {
@@ -836,6 +846,16 @@ private:
         }
         if (!std::holds_alternative<BinaryExpr *>(condition->expr))
         {
+            ValueType conditionType = get_expr_type(condition);
+
+            if (conditionType != ValueType::Bool &&
+                conditionType != ValueType::Int)
+            {
+                throw std::runtime_error(
+                    std::string("A condition must be bool or int, but got ") +
+                    type_name(conditionType));
+            }
+
             generate_expr(condition, buffer);
 
             buffer += "    cmp rbx, 0\n";
@@ -1382,6 +1402,13 @@ private:
                        }
 
                        // Unary expression
+                       // Function call used as a value
+                       else if constexpr (std::is_same_v<T, CallExpr *>)
+                       {
+                           get_expr_type(expr); // arguments, and that it gives a value
+                           generate_call(node->name, node->args, buffer);
+                       }
+
                        else if constexpr (std::is_same_v<T, UnaryExpr *>)
                        {
                            // Type-check the whole expression first.
@@ -1463,50 +1490,282 @@ private:
                    expr->expr);
     }
 
-    // ---- functions -----
+    //----------------------------------------------------//
+    // ---- functions -----------------------------------------------------
+    //
+    // Calling convention (all values take 8 bytes on the stack):
+    //   caller: evaluate each argument left to right and push it,
+    //           call nex_fn_<name>, then add rsp, 8 * argument_count
+    //   callee: push rbp / mov rbp, rsp, then copy every parameter into an
+    //           ordinary local variable (so parameters behave like "set")
+    //   result: rbx for int / bool / text, xmm0 for float / double
+    // Argument i of n is at [rbp + 16 + 8 * (n - 1 - i)] inside the callee.
+
+    struct FuncInfo
+    {
+        NodeFunc *node = nullptr;
+        std::vector<ValueType> paramTypes;
+        bool returnsValue = false;
+        ValueType returnType = ValueType::Int;
+    };
 
     static std::string function_label(const std::string &name)
     {
         return "nex_fn_" + name;
     }
 
+    static ValueType type_from_name(const std::string &name)
+    {
+        if (name == "int")
+            return ValueType::Int;
+        if (name == "float")
+            return ValueType::Float;
+        if (name == "double")
+            return ValueType::Double;
+        if (name == "text")
+            return ValueType::String;
+        if (name == "bool")
+            return ValueType::Bool;
+
+        throw std::runtime_error("Unknown type: " + name);
+    }
+
+    static std::string count_words(size_t n, const char *singular, const char *plural)
+    {
+        return std::to_string(n) + " " + (n == 1 ? singular : plural);
+    }
+
+    void collect_functions()
+    {
+        m_functions.clear();
+
+        for (NodeFunc *function : m_root.functions)
+        {
+            if (m_functions.count(function->name))
+            {
+                throw std::runtime_error(
+                    "Function '" + function->name + "' is already defined");
+            }
+
+            FuncInfo info;
+            info.node = function;
+
+            std::unordered_map<std::string, bool> seen;
+            for (const NodeParam &param : function->params)
+            {
+                if (seen.count(param.name))
+                {
+                    throw std::runtime_error(
+                        "Duplicate parameter '" + param.name +
+                        "' in function '" + function->name + "'");
+                }
+                seen[param.name] = true;
+                info.paramTypes.push_back(type_from_name(param.type));
+            }
+
+            if (!function->return_type.empty())
+            {
+                info.returnsValue = true;
+                info.returnType = type_from_name(function->return_type);
+            }
+
+            m_functions[function->name] = info;
+        }
+    }
+
+    void emit_epilogue(std::string &buffer)
+    {
+        buffer += "    mov rsp, rbp\n";
+        buffer += "    pop rbp\n";
+        buffer += "    ret\n";
+    }
+
     // Emits one function. It gets its own frame, its own scopes and its own
     // variable count; it cannot see the caller's variables.
     void generate_function(NodeFunc *function, std::string &buffer)
     {
+        FuncInfo &info = m_functions.at(function->name);
+
         auto savedScopes = std::move(m_scopes);
         size_t savedVariableCount = m_variableCount;
+        FuncInfo *savedFunction = m_currentFunction;
 
         m_scopes.clear();
         m_scopes.emplace_back();
         m_variableCount = 0;
+        m_currentFunction = &info;
 
         buffer += "\n" + function_label(function->name) + ":\n";
         buffer += "    push rbp\n";
         buffer += "    mov rbp, rsp\n";
+
+        // Copy each parameter from the caller's pushed arguments into a local.
+        const size_t n = info.paramTypes.size();
+        for (size_t i = 0; i < n; ++i)
+        {
+            const std::string source =
+                "[rbp + " + std::to_string(16 + 8 * (n - 1 - i)) + "]";
+            const ValueType type = info.paramTypes[i];
+
+            if (type == ValueType::Float)
+            {
+                buffer += "    movss xmm0, " + source + "\n";
+                buffer += "    sub rsp, 8\n";
+                buffer += "    movss [rsp], xmm0\n";
+            }
+            else if (type == ValueType::Double)
+            {
+                buffer += "    movsd xmm0, " + source + "\n";
+                buffer += "    sub rsp, 8\n";
+                buffer += "    movsd [rsp], xmm0\n";
+            }
+            else
+            {
+                buffer += "    mov rbx, " + source + "\n";
+                buffer += "    push rbx\n";
+            }
+
+            const size_t offset = (m_variableCount + 1) * 8;
+            m_variableCount++;
+            m_scopes.back()[function->params[i].name] = Var{offset, type};
+        }
 
         bool terminated = false;
         generate_scope(function->scope, buffer, terminated);
 
         if (!terminated)
         {
-            buffer += "    mov rsp, rbp\n";
-            buffer += "    pop rbp\n";
-            buffer += "    ret\n";
+            if (info.returnsValue)
+            {
+                throw std::runtime_error(
+                    "Function '" + function->name +
+                    "' may reach its end without giving a value");
+            }
+
+            emit_epilogue(buffer);
         }
 
         m_scopes = std::move(savedScopes);
         m_variableCount = savedVariableCount;
+        m_currentFunction = savedFunction;
+    }
+
+    // Checks that a call names a known function with the right arguments.
+    const FuncInfo &check_call(const std::string &name,
+                               const std::vector<NodeExpr *> &args)
+    {
+        auto found = m_functions.find(name);
+
+        if (found == m_functions.end())
+            throw std::runtime_error("Unknown function: " + name);
+
+        const FuncInfo &info = found->second;
+
+        if (args.size() != info.paramTypes.size())
+        {
+            throw std::runtime_error(
+                "Function '" + name + "' expects " +
+                count_words(info.paramTypes.size(), "argument", "arguments") +
+                ", but " +
+                std::to_string(args.size()) +
+                (args.size() == 1 ? " was" : " were") + " given");
+        }
+
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            ValueType got = get_expr_type(args[i]);
+
+            if (got != info.paramTypes[i])
+            {
+                throw std::runtime_error(
+                    "Argument " + std::to_string(i + 1) + " of '" + name +
+                    "' must be " + type_name(info.paramTypes[i]) +
+                    ", but got " + type_name(got));
+            }
+        }
+
+        return info;
+    }
+
+    // Pushes the arguments, calls, and removes the arguments again.
+    // The result (if any) is left in rbx or xmm0.
+    void generate_call(const std::string &name,
+                       const std::vector<NodeExpr *> &args,
+                       std::string &buffer)
+    {
+        const FuncInfo &info = check_call(name, args);
+
+        for (size_t i = 0; i < args.size(); ++i)
+        {
+            const ValueType type = info.paramTypes[i];
+            generate_expr(args[i], buffer);
+
+            if (type == ValueType::Float)
+            {
+                buffer += "    sub rsp, 8\n";
+                buffer += "    movss [rsp], xmm0\n";
+            }
+            else if (type == ValueType::Double)
+            {
+                buffer += "    sub rsp, 8\n";
+                buffer += "    movsd [rsp], xmm0\n";
+            }
+            else
+            {
+                buffer += "    push rbx\n";
+            }
+        }
+
+        buffer += "    call " + function_label(name) + "\n";
+
+        if (!args.empty())
+        {
+            buffer += "    add rsp, " + std::to_string(args.size() * 8) + "\n";
+        }
     }
 
     void generate_call_statement(const NodeStmntCall &call, std::string &buffer)
     {
-        auto found = m_functions.find(call.name);
+        generate_call(call.name, call.args, buffer);
+    }
 
-        if (found == m_functions.end())
-            throw std::runtime_error("Unknown function: " + call.name);
+    void generate_give(const NodeStmntGive &give, std::string &buffer)
+    {
+        if (!m_currentFunction)
+            throw std::runtime_error("'give' can only be used inside a function");
 
-        buffer += "    call " + function_label(call.name) + "\n";
+        const FuncInfo &info = *m_currentFunction;
+        const std::string &name = info.node->name;
+
+        if (give.expr)
+        {
+            if (!info.returnsValue)
+            {
+                throw std::runtime_error(
+                    "Function '" + name +
+                    "' does not give a value, so 'give' cannot have an expression");
+            }
+
+            ValueType got = get_expr_type(give.expr);
+
+            if (got != info.returnType)
+            {
+                throw std::runtime_error(
+                    "Function '" + name + "' must give " +
+                    type_name(info.returnType) + ", but this gives " +
+                    type_name(got));
+            }
+
+            generate_expr(give.expr, buffer);
+        }
+        else if (info.returnsValue)
+        {
+            throw std::runtime_error(
+                "Function '" + name + "' must give a value of type " +
+                type_name(info.returnType));
+        }
+
+        emit_epilogue(buffer);
     }
 
     Var lookup(const std::string &name)
@@ -1527,7 +1786,8 @@ private:
 
     NodeProgram m_root;
 
-    std::unordered_map<std::string, NodeFunc *> m_functions;
+    std::unordered_map<std::string, FuncInfo> m_functions;
+    FuncInfo *m_currentFunction = nullptr; // null while generating top-level code
 
     // Stores variables for each scope.
     std::vector<std::unordered_map<std::string, Var>> m_scopes;
