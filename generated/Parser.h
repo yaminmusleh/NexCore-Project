@@ -62,23 +62,25 @@ private:
 		_greater=6,
 		_greater_equal=7,
 		_semi=8,
-		_open_paren=9,
-		_close_paren=10,
-		_open_scope=11,
-		_close_scope=12,
-		_plus=13,
-		_minus=14,
-		_star=15,
-		_slash=16,
-		_percent=17,
-		_logical_and=18,
-		_logical_or=19,
-		_logical_not=20,
-		_identifier=21,
-		_int_lit=22,
-		_float_lit=23,
-		_double_lit=24,
-		_string_lit=25
+		_comma=9,
+		_colon=10,
+		_open_paren=11,
+		_close_paren=12,
+		_open_scope=13,
+		_close_scope=14,
+		_plus=15,
+		_minus=16,
+		_star=17,
+		_slash=18,
+		_percent=19,
+		_logical_and=20,
+		_logical_or=21,
+		_logical_not=22,
+		_identifier=23,
+		_int_lit=24,
+		_float_lit=25,
+		_double_lit=26,
+		_string_lit=27
 	};
 	int maxT;
 
@@ -109,7 +111,12 @@ public:
 	void Nex();
 	void FuncDecl();
 	void Statement(NodeStmnt *&statement);
+	void Param(ParamList &params);
+	void TypeName(std::string &type);
 	void BlockStmt(NodeStmnt *&statement);
+	void ArgList(ExprList &args);
+	void Expression(NodeExpr *&expr);
+	void GiveStmt(NodeStmnt *&statement);
 	void SetStmt(NodeStmnt *&statement);
 	void ExitStmt(NodeStmnt *&statement);
 	void IfStmt(NodeStmnt *&statement);
@@ -117,7 +124,6 @@ public:
 	void WhileStmt(NodeStmnt *&statement);
 	void PrintStmnt(NodeStmnt *&statement);
 	void IdentifierStmt(NodeStmnt *&statement);
-	void Expression(NodeExpr *&expr);
 	void ForInit(NodeStmnt *&statement);
 	void ForIncrement(NodeStmnt *&statement);
 	void OrExpr(NodeExpr *&left);

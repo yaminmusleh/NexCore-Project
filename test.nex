@@ -1,5 +1,5 @@
-func helloPrint(){
-    print("hello");
+func add(a: int, b: int) gives int {
+    give a + b;
 }
 
-helloPrint();
+print(add(5,5));
