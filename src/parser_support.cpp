@@ -351,3 +351,31 @@ NodeStmnt *make_for(
     return new (statement) NodeStmnt{
         for_statement};
 }
+
+NodeStmnt *make_call_stmt(const std::string &name)
+{
+    NodeStmnt *statement =
+        make_statement();
+
+    return new (statement) NodeStmnt{
+        NodeStmntCall{name}};
+}
+
+NodeFunc *make_function(
+    const std::string &name,
+    NodeScope *scope)
+{
+    if (!arena)
+        throw std::runtime_error(
+            "Nex parser arena is not initialized");
+
+    NodeFunc *function =
+        arena->alloc<NodeFunc>();
+
+    if (!function)
+        throw std::bad_alloc{};
+
+    return new (function) NodeFunc{
+        name,
+        scope};
+}
