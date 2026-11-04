@@ -66,6 +66,12 @@ NodeStmnt *make_for(
     NodeStmnt *increment,
     NodeScope *scope);
 
+NodeStmnt *make_call_stmt(const std::string &name);
+
+NodeFunc *make_function(
+    const std::string &name,
+    NodeScope *scope);
+
 NodeStmntIf *get_if_statement(NodeStmnt *statement);
 
 NodeStmnt *make_while(
